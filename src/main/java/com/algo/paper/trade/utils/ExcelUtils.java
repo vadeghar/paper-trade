@@ -40,7 +40,7 @@ public class ExcelUtils {
 			}
 			Integer fileNo = getLastGenerateFileNo(dir);
 			fileNo = fileNo+1;
-			fileFullPath = dir+"\\"+fileNamePrefix+""+fileNo+"."+ext;
+			fileFullPath = dir+File.separator+fileNamePrefix+""+fileNo+"."+ext;
 			addHeader(fileFullPath);
 			System.out.println("Excel File has been created successfully.");
 			return fileFullPath;
@@ -238,7 +238,7 @@ public class ExcelUtils {
 	
 	public static String getCurrentFileNameWithPath(String dir) {
 		String fileName = "trades_"+getLastGenerateFileNo(dir);
-		fileName = dir+fileName+"."+ext;
+		fileName = dir+File.separator+fileName+"."+ext;
 		File file = new File(fileName);
 		if(!file.exists())
 			ExcelUtils.createExcelFile(dir);
