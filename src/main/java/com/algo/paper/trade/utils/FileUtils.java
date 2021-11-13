@@ -5,6 +5,9 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,10 +48,21 @@ public class FileUtils {
 	}
 
 
-	public static void writeInFile(String file, String lineContains) {
-
-
-
-
+	public static String getSymbolToken(String symbol, String dataFilePath) {
+		try {
+			JSONParser parser = new JSONParser();
+			JSONArray nseArray = (JSONArray) parser.parse(new FileReader(dataFilePath));
+			for(int i=0; i<nseArray.size() ; i++) {
+				JSONObject jsonObject = (JSONObject) nseArray.get(i);
+//				System.out.println(jsonObject.get("symbol"));
+				if(((String)jsonObject.get("symbol")).equals(symbol)) {
+					return (String)jsonObject.get("token");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
+	
 }

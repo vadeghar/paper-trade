@@ -43,5 +43,13 @@ public class DateUtils {
 		DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern(Constants.OPST_EXPIRY_FORMAT);
 		return formatter2.format(date).toUpperCase();
 	}
-
+	
+	public static LocalDate textToLocalDateddMMYYYY(String ddMMyyyy) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		return LocalDate.parse(ddMMyyyy, formatter);
+	}
+	
+	public static String getAngelFormatExpiry(String ddMMyyyy) {
+		return DateUtils.getExpiryFormat(DateUtils.textToLocalDateddMMYYYY(ddMMyyyy), Constants.AGL_EXPIRY_FORMAT);
+	}
 }

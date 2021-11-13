@@ -36,6 +36,9 @@ public class PaperTradeServiceImpl {
 	@Autowired
 	private OptionChainServiceImpl optionChainService;
 	
+	@Autowired
+	private AngelSmartServiceImpl angelSmartService;
+	
 	@Value("${app.paperTrade.dataDir}")
 	private String dataDir;
 	
@@ -59,6 +62,12 @@ public class PaperTradeServiceImpl {
 	
 	@Value("${app.paperTrade.isWeekly:true}")
 	private boolean isWeekly;
+	
+	@Value("${app.angel.nfo.dataFile}")
+	private String nfoDataFile;
+	
+	@Value("${app.api.use}")
+	private String apiUse;
 	
 	LocalTime closeTime = LocalTime.parse(Constants.CLOSEING_TIME);
 	LocalTime openingTime = LocalTime.parse(Constants.OPENING_TIME);
@@ -95,7 +104,7 @@ public class PaperTradeServiceImpl {
 		System.out.println("*******************************************************************************************\n\n");
 	}
 	
-	@Scheduled(cron = "0/11 * * * * ?")
+	@Scheduled(cron = "0/10 * * * * ?")
 	public void monitorKiteStrangleAndDoAdjustments() throws JSONException, IOException {
 		System.out.println("\n\n\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now())+"\n");
 		List<Position> netPositions = getNetPaperPositions();
@@ -112,7 +121,7 @@ public class PaperTradeServiceImpl {
 		Position p2 = netPositions.get(1);
 		String p1Symbol = p1.getTradingSymbol();
 		String p2Symbol = p2.getTradingSymbol();
-		Map<String, LTPQuote> ltps = getLTP(netPositions);
+		Map<String, LTPQuote> ltps = getLastTradedPrices(netPositions);
 		LTPQuote p1Ltp = ltps.get(p1Symbol);
 		LTPQuote p2Ltp = ltps.get(p2Symbol);
 		
@@ -177,7 +186,7 @@ public class PaperTradeServiceImpl {
 	private void updteTradeFile() {
 		try {
 			List<Position> netPositions = getAllPaperPositions();
-			Map<String, LTPQuote> ltps = getLTP(netPositions);
+			Map<String, LTPQuote> ltps = getLastTradedPrices(netPositions);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			double netPnl = 0.0;
@@ -213,7 +222,7 @@ public class PaperTradeServiceImpl {
 	}
 	
 	private void printPaperNetPositions(List<Position> netPositions) {
-		Map<String, LTPQuote> ltps = getLTP(netPositions);
+		Map<String, LTPQuote> ltps = getLastTradedPrices(netPositions);
 		
 		System.out.println("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 		System.out.println("\tTRADING SYMBOL\t\t|\tTRADE TYPE\t|\tQty\t|\tSell Price\t|\tBuy Price\t|\tCurrent Price\t|\tP/L\t| Net P/L\t|\n");
@@ -256,17 +265,46 @@ public class PaperTradeServiceImpl {
 		tradingSymbol = tradingSymbol.substring(0, 11);
 		return tradingSymbol;
 	}
+	
+	private Map<String, LTPQuote> getLastTradedPrices(List<Position> netPositions) {
+		if(StringUtils.isNotBlank(apiUse) && apiUse.equals("ANGEL")) {
+			return getAngelLTP(netPositions);
+		} else {
+			return getOpstraLTP(netPositions);
+		}
+			
+	}
 
-	private Map<String, LTPQuote> getLTP(List<Position> netPositions) {
+	/**
+	 * This method will fetch the data from Opstra API
+	 * Use getLTP2, to fetch data from Angel
+	 * @param netPositions
+	 * @return
+	 */
+	private Map<String, LTPQuote> getOpstraLTP(List<Position> netPositions) { //NIFTY18NOV2117750PE - opstraFormattedExpiry - NIFTY18NOV2021
+		long startTime = System.currentTimeMillis();
 		OpstOptionChain optionChain =  optionChainService.getOpstOptionChainData(opstSymbol, DateUtils.opstraFormattedExpiry(expiry));
 		Map<String, LTPQuote> ltpData = new HashMap<>();
 		for(Position p : netPositions) {
 			String ceOrPe = p.getTradingSymbol().endsWith("CE") ? Constants.CE : Constants.PE;
-			OpstOptionData data = optionChain.getData().stream().filter( d -> (d.getStrikePrice()+DateUtils.opstraFormattedExpiry(expiry)+ceOrPe).equals(p.getTradingSymbol())).findFirst().get();
+			OpstOptionData data = optionChain.getData().stream().filter( d -> (opstSymbol+DateUtils.getAngelFormatExpiry(expiry)+d.getStrikePrice()+ceOrPe).equals(p.getTradingSymbol())).findFirst().get();
 			LTPQuote ltp = new LTPQuote();
 			ltp.lastPrice = ceOrPe.equals(Constants.CE) ? Double.valueOf(data.getCallLTP()) : Double.valueOf(data.getPutLTP());
-			ltpData.put(data.getStrikePrice()+DateUtils.opstraFormattedExpiry(expiry)+ceOrPe, ltp);
+			ltpData.put(opstSymbol+DateUtils.getAngelFormatExpiry(expiry)+data.getStrikePrice()+ceOrPe, ltp);
 		}
+		long endTime = System.currentTimeMillis();
+		System.out.println("getLTP TIME TAKEN: "+(endTime-startTime)+" M.SEC");
+		return ltpData;
+	}
+	
+	private Map<String, LTPQuote> getAngelLTP(List<Position> netPositions) {
+		long startTime = System.currentTimeMillis();
+		List<String> symbols = netPositions.stream()
+				              .map(Position::getTradingSymbol)
+				              .collect(Collectors.toList());
+		Map<String, LTPQuote> ltpData = angelSmartService.getLtps(symbols, "NFO", nfoDataFile);
+		long endTime = System.currentTimeMillis();
+		System.out.println("getLTP2 TIME TAKEN: "+(endTime-startTime)+" M.SEC");
 		return ltpData;
 	}
 

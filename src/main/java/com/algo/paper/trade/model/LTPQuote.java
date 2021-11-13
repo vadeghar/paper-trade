@@ -11,5 +11,10 @@ public class LTPQuote {
     public long instrumentToken;
     @SerializedName("last_price")
     public double lastPrice;
+    
+	@Override
+	public String toString() {
+		return "LTPQuote [instrumentToken=" + instrumentToken + ", lastPrice=" + lastPrice + "]";
+	}
 
 }
