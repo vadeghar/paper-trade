@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -26,13 +25,16 @@ public class LoadScriptsTest {
 
 	@Autowired
 	RestTemplate restTemplate;
+	
+	@Autowired
+	PaperTradeServiceImpl paperTradeService;
 
 	@Value("${app.angel.nfo.dataFile}")
 	private String nfoDataFile;
 
 	@Value("${app.angel.nse.dataFile}")
 	private String nseDataFile;
-	@Test
+//	@Test
 	public void responseEntityTest() {
 		String reqUrl = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
 		ResponseEntity<String> responseEntity = restTemplate.exchange(reqUrl, HttpMethod.GET, null, String.class);
@@ -89,6 +91,10 @@ public class LoadScriptsTest {
 			System.out.println("RESPONSE NOT FOUND SERVICE");
 		}
 
+	}
+	
+	@Test public void placeStrangleStrategyTest() {
+		paperTradeService.placeStrangleStrategy();
 	}
 
 

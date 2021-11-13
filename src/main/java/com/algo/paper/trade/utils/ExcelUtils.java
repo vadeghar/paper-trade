@@ -75,6 +75,66 @@ public class ExcelUtils {
 		}
 	}
 	
+	/**
+	 * Update specific cell in specific row in sheet
+	 * @param fileFullPath
+	 * @param rowNo
+	 * @param cellNo
+	 * @param textToUpdate
+	 */
+	public static void updateCellByRowAndCellNums(String fileFullPath, int rowNo, int cellNo, Object textToUpdate) {
+		try {
+			FileInputStream inputStream = new FileInputStream(new File(fileFullPath));
+            Workbook workbook = WorkbookFactory.create(inputStream);
+            Sheet sheet = workbook.getSheetAt(0);
+            Row row = sheet.getRow(rowNo);
+            Cell cell2Update = row.createCell(cellNo);
+            if(textToUpdate instanceof String)
+            	cell2Update.setCellValue((String) textToUpdate);
+			else if(textToUpdate instanceof Integer)
+				cell2Update.setCellValue((Integer)textToUpdate);
+			else if(textToUpdate instanceof Double) {
+				cell2Update.setCellValue((Double)textToUpdate);
+			}
+            inputStream.close();
+            FileOutputStream outputStream = new FileOutputStream(fileFullPath);
+            workbook.write(outputStream);
+            workbook.close();
+            outputStream.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Update specific cell in specific row in sheet
+	 * @param fileFullPath
+	 * @param rowNo
+	 * @param cellNo
+	 * @param textToUpdate
+	 */
+	public static String getCellValByRowAndCellNums(String fileFullPath, int rowNo, int cellNo) {
+		String cellVal = null;
+		try {
+			FileInputStream inputStream = new FileInputStream(new File(fileFullPath));
+            Workbook workbook = WorkbookFactory.create(inputStream);
+            Sheet sheet = workbook.getSheetAt(0);
+            Row row = sheet.getRow(rowNo);
+            if(row != null) {
+            	Cell cell = row.getCell(cellNo);
+                cellVal = cell != null ? getCellValueAsString(workbook, cell) : null;;
+            }
+            inputStream.close();
+            FileOutputStream outputStream = new FileOutputStream(fileFullPath);
+            workbook.write(outputStream);
+            workbook.close();
+            outputStream.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return cellVal;
+	}
+	
 	public static boolean isSymbolExistInFile(String fileFullPath, String c0Text) {
 		boolean symbolExist = false;
 		try {
@@ -229,6 +289,8 @@ public class ExcelUtils {
 		wb.write(outputStream);
 		wb.close();
 		outputStream.close();
+		updateCellByRowAndCellNums(fileFullPath, 0, 7, "TARGET");
+		updateCellByRowAndCellNums(fileFullPath, 0, 8, "S/L");
 	}
 
 	public static Object[] prepareDataRow(Object c0, Object c1, Object c2, Object c3, Object c4, Object c5, Object c6) {
@@ -295,7 +357,7 @@ public class ExcelUtils {
 			    Row row = sheet.getRow(i);
 			    for (int j = row.getFirstCellNum(); j < noOfColumns; j++) {
 			        Cell cell = row.getCell(j);
-			        dataTable[i][j] = getCellValueAsString(cell);
+			        dataTable[i][j] = getCellValueAsString(wb, cell);
 			    }
 			}
 			wb.close();
@@ -307,7 +369,7 @@ public class ExcelUtils {
 	    return dataTable;
 	}
 	
-	private static String getCellValueAsString(Cell cell) {
+	private static String getCellValueAsString(Workbook wb, Cell cell) {
 		if(cell == null) return "";
 	    CellType cellType = CellType.forInt(cell.getCellType());
 	    String val = "";
@@ -317,7 +379,6 @@ public class ExcelUtils {
 	            val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
 	            break;
 	        case NUMERIC:
-	            DataFormatter dataFormatter = new DataFormatter();
 	            val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
 	            break;
 	        case BOOLEAN:
@@ -328,9 +389,27 @@ public class ExcelUtils {
 	            break;
 	           
 	        case FORMULA:
+	        	val = evaluateFormulaAsText(wb, cell);
 	        	break;
 	    }
 	    return val;
+	}
+	
+	private static String evaluateFormulaAsText(Workbook workbook, Cell cell) {
+		String val = "";
+		FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator(); 
+	    switch (evaluator.evaluateFormulaCellEnum(cell)) {
+	        case BOOLEAN:
+	        	val = String.valueOf(cell.getBooleanCellValue());
+	            break;
+	        case NUMERIC:
+	        	val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
+	            break;
+	        case STRING:
+	        	val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
+	            break;
+	    }
+		return val;
 	}
 	
 }

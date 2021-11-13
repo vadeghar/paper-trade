@@ -81,13 +81,14 @@ public class PaperTradeServiceImpl {
 	 */
 	public void placeStrangleStrategy() {
 		String opstExpiry = DateUtils.opstraFormattedExpiry(expiry);
-		Map<String, OpstOptionData> strikes = optionChainService.getOpstStrangleStrikes(opstSymbol, opstExpiry, deltaVal, 1.0);
+		Double nearDelta = 3.0;
+		Map<String, OpstOptionData> strikes = optionChainService.getOpstStrangleStrikes(opstSymbol, opstExpiry, deltaVal, nearDelta);
 		if(strikes == null || CollectionUtils.isEmpty(strikes.keySet()))
-			throw new RuntimeException("Strike prices not Found near "+deltaVal+" +/- 1 delta");
+			throw new RuntimeException("Strike prices not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.CE) == null)
-			throw new RuntimeException("Strike price CALL not Found near "+deltaVal+" +/- 1 delta");
+			throw new RuntimeException("Strike price CALL not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.PE) == null)
-			throw new RuntimeException("Strike price PUT not Found near "+deltaVal+" +/- 1 delta");
+			throw new RuntimeException("Strike price PUT not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		ExcelUtils.createExcelFile(dataDir);
 		OpstOptionData peOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.PE)).findFirst().get());
 		System.out.println("peOption: "+peOption);
@@ -95,10 +96,16 @@ public class PaperTradeServiceImpl {
 		System.out.println("ceOption: "+ceOption);
 		System.out.println("*******************************************************************************************");
 		if(paperTrade) {
+			boolean peSell = false;
 			//(OpstOptionData opstOption, Integer qty,  String ceOrPe)
 			boolean ceSell = sell(ceOption, opstExpiry, qty * -1, Constants.CE);
 			if(ceSell) {
-				sell(peOption, opstExpiry, qty * -1, Constants.PE);
+				peSell = sell(peOption, opstExpiry, qty * -1, Constants.PE);
+			}
+			if(peSell) {
+				Double totalPremReceived = (Double.valueOf(ceOption.getCallLTP()) + Double.valueOf(peOption.getPutLTP())) * qty;
+				Double target = (totalPremReceived * 80) / 100;
+				ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 7, target);
 			}
 		} 
 		System.out.println("*******************************************************************************************\n\n");
@@ -106,7 +113,10 @@ public class PaperTradeServiceImpl {
 	
 	@Scheduled(cron = "0/10 * * * * ?")
 	public void monitorKiteStrangleAndDoAdjustments() throws JSONException, IOException {
-		System.out.println("\n\n\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now())+"\n");
+		System.out.println("\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
+		if(isTargetAchieved()) {
+			return;
+		}
 		List<Position> netPositions = getNetPaperPositions();
 		if(CollectionUtils.isEmpty(netPositions)) {
 			System.out.println("\t\t NO PAPER POSITIONS FOUND \n");
@@ -114,7 +124,7 @@ public class PaperTradeServiceImpl {
 		}
 		netPositions = netPositions.stream().filter(p -> p.getNetQuantity() < 0).collect(Collectors.toList());
 		if(netPositions.size() > 2) {
-			System.out.println("\t\tFOUND MORE THAN TWO PAPER POSITIONS ******************\n");
+			System.out.println("\t\tFOUND MORE THAN TWO PAPER POSITIONS ******************");
 			return;
 		}
 		Position p1 = netPositions.get(0);
@@ -126,7 +136,7 @@ public class PaperTradeServiceImpl {
 		LTPQuote p2Ltp = ltps.get(p2Symbol);
 		
 		Double diffInPerc = priceDiffInPerc(p1Ltp.lastPrice, p2Ltp.lastPrice);
-		System.out.println("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"% \n\n \t\t\tIF THIS IS GREATER THAN / EQUAL "+adjustmentPerc+" ADJUSTMENT WILL TRIGGER\n");
+		System.out.println("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"%\n\t\t\tWAITING FOR DIFFERENCE IF: "+adjustmentPerc+"%\n");
 		Double newSellPremium = 0.0;
 		if(Double.valueOf(String.format("%.2f", diffInPerc)) > adjustmentPerc) {
 			System.out.println("**************************************************************************************");
@@ -169,6 +179,25 @@ public class PaperTradeServiceImpl {
 		}
 		printPaperNetPositions(getAllPaperPositions());
 		updteTradeFile();
+	}
+	
+	private boolean isTargetAchieved() {
+		String target = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 7);
+		Double targetDbl = 0.0;
+		Double netPnlDbl = 0.0;
+		if(StringUtils.isNotBlank(target))
+			targetDbl = Double.valueOf(target);
+		String netPnl = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 6);
+		if(StringUtils.isNotBlank(netPnl)) {
+//			netPnl = String.format("%.2f",netPnl);
+			netPnlDbl = Double.valueOf(netPnl);
+		}
+		System.out.println("\t\t\tCurrent P/L: "+netPnl+"\n\t\t\tTARGET: "+target);
+		if(netPnlDbl >= targetDbl) {
+			System.out.println("\n\n\n\t\t\tTARGET IS REACHED CLOSE ALL TRADES: "+targetDbl+", Current P/L: "+netPnlDbl);
+			return true;
+		}
+		return false;
 	}
 	
 	private void startAdjustment(Position position, OpstOptionData newSellOption, String ceOrPe, Map<String, LTPQuote> ltps) {
@@ -304,7 +333,7 @@ public class PaperTradeServiceImpl {
 				              .collect(Collectors.toList());
 		Map<String, LTPQuote> ltpData = angelSmartService.getLtps(symbols, "NFO", nfoDataFile);
 		long endTime = System.currentTimeMillis();
-		System.out.println("getLTP2 TIME TAKEN: "+(endTime-startTime)+" M.SEC");
+		log.info("getLTP2 TIME TAKEN: "+(endTime-startTime)+" M.SEC");
 		return ltpData;
 	}
 
