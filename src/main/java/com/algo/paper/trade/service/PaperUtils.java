@@ -157,7 +157,7 @@ public class PaperUtils {
 	public void printKiteNetPositions() {
 
 		List<MyPosition> netPositions = getAllPaperPositions();
-		StringBuilder sb = new StringBuilder();
+		StringBuilder sb = new StringBuilder("\n");
 		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 		sb.append("\tTRADING SYMBOL\t\t|\tTRADE TYPE\t|\tQty\t|\tSell Price\t|\tBuy Price\t|\tCurrent Price\t|\tP/L\t| Net P/L\t|\n");
 		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
