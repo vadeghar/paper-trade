@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -16,7 +17,6 @@ import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
@@ -141,7 +141,6 @@ public class ExcelUtils {
 			FileInputStream inputStream = new FileInputStream(new File(fileFullPath));
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);
-            Integer rowNo = 0;
             for (Row r : sheet) {
                 if(r.getCell(0).getStringCellValue().equals(c0Text)) {
                 	symbolExist = true;
@@ -325,7 +324,8 @@ public class ExcelUtils {
 						fileSeqns.add(Integer.valueOf(fName.split("_")[1]));
 					}
 				}
-				maxNo = fileSeqns.stream().max(Integer::compare).get();
+				if(CollectionUtils.isNotEmpty(fileSeqns))
+					maxNo = fileSeqns.stream().max(Integer::compare).get();
 			} 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -335,10 +335,8 @@ public class ExcelUtils {
 	}
 	
 	public static void updateNetPnl(Workbook wb, Sheet sheet) {
-		int lastCellNum = sheet.getRow(0).getLastCellNum();
 		Cell formulaCell = sheet.getRow(1).createCell(6);
-		String endRow = "F"+sheet.getLastRowNum();
-		formulaCell.setCellFormula("SUM(F2:F100)");
+		formulaCell.setCellFormula("SUM(F2:F1000)");
 		FormulaEvaluator formulaEvaluator = 
 				  wb.getCreationHelper().createFormulaEvaluator();
 				formulaEvaluator.evaluate(formulaCell);
@@ -371,44 +369,60 @@ public class ExcelUtils {
 	
 	private static String getCellValueAsString(Workbook wb, Cell cell) {
 		if(cell == null) return "";
-	    CellType cellType = CellType.forInt(cell.getCellType());
-	    String val = "";
+		@SuppressWarnings("deprecation")
+		CellType cellType = CellType.forInt(cell.getCellType());
+		String val = "";
 
-	    switch (cellType) {
-	        case STRING:
-	            val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
-	            break;
-	        case NUMERIC:
-	            val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
-	            break;
-	        case BOOLEAN:
-	            val = String.valueOf(cell.getBooleanCellValue());
-	            break;
-
-	        case BLANK:
-	            break;
-	           
-	        case FORMULA:
-	        	val = evaluateFormulaAsText(wb, cell);
-	        	break;
-	    }
-	    return val;
+		switch (cellType) {
+		case STRING:
+			val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
+			break;
+		case NUMERIC:
+			val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
+			break;
+		case BOOLEAN:
+			val = String.valueOf(cell.getBooleanCellValue());
+			break;
+		case BLANK:
+			break;
+		case FORMULA:
+			val = evaluateFormulaAsText(wb, cell);
+			break;
+		case ERROR:
+			break;
+		case _NONE:
+			break;
+		default:
+			break;
+		}
+		return val;
 	}
 	
+	@SuppressWarnings("deprecation")
 	private static String evaluateFormulaAsText(Workbook workbook, Cell cell) {
 		String val = "";
 		FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator(); 
-	    switch (evaluator.evaluateFormulaCellEnum(cell)) {
-	        case BOOLEAN:
-	        	val = String.valueOf(cell.getBooleanCellValue());
-	            break;
-	        case NUMERIC:
-	        	val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
-	            break;
-	        case STRING:
-	        	val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
-	            break;
-	    }
+		switch (evaluator.evaluateFormulaCellEnum(cell)) {
+		case BOOLEAN:
+			val = String.valueOf(cell.getBooleanCellValue());
+			break;
+		case NUMERIC:
+			val = cell.getNumericCellValue() != 0 ? String.valueOf(cell.getNumericCellValue()) : "0";
+			break;
+		case STRING:
+			val = StringUtils.isNotBlank(cell.getStringCellValue()) ? cell.getStringCellValue() : StringUtils.EMPTY;
+			break;
+		case BLANK:
+			break;
+		case ERROR:
+			break;
+		case FORMULA:
+			break;	
+		case _NONE:
+			break;
+		default:
+			break;
+		}
 		return val;
 	}
 	
