@@ -58,18 +58,22 @@ public class PaperTradeServiceImpl {
 	public void monitorPaperStrangleAndDoAdjustments() throws JSONException, IOException {
 		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
 			System.out.println("\n\n\n\nMARKET CLOSED");
+			log.info("\n\n\n\nMARKET CLOSED");
 			paperUtils.printKiteNetPositions();
 			return;
 		}
 		System.out.println("\n\n\n\n\n\t\t\tKITE - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
+		log.info("\n\n\n\n\n\t\t\tKITE - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		List<MyPosition> netPositions = paperUtils.getPaperNetPositions();
 		if(CollectionUtils.isEmpty(netPositions)) {
 			System.out.println("************* NO KITE POSITIONS FOUND ******************");
+			log.info("************* NO KITE POSITIONS FOUND ******************");
 			return;
 		}
 		List<MyPosition> sellPositions = netPositions.stream().filter(p -> p.getNetQuantity() < 0).collect(Collectors.toList());
 		if(sellPositions.size() > 2) {
 			System.out.println("************* FOUND MORE THAN TWO KITE POSITIONS ******************");
+			log.info("************* FOUND MORE THAN TWO KITE POSITIONS ******************");
 			return;
 		}
 		if(closeOnTarget) {
@@ -91,8 +95,10 @@ public class PaperTradeServiceImpl {
 		if(adjustAtEnd && LocalTime.now().isAfter(closeTime.minusMinutes(5))) {
 			adjustmentPerc = 20;
 			System.out.println("\t\t\t** Adjustment Perc is Changed to: "+adjustmentPerc);
+			log.info("\t\t\t** Adjustment Perc is Changed to: "+adjustmentPerc);
 		}
 		System.out.println("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"%\n\t\t\tWAITING FOR DIFFERENCE IF: "+adjustmentPerc+"%");
+		log.info("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"%\n\t\t\tWAITING FOR DIFFERENCE IF: "+adjustmentPerc+"%");
 		if(Double.valueOf(String.format("%.2f", diffInPerc)) > adjustmentPerc) {
 			initAdjustmentAction(p1, p2);
 		}
@@ -103,7 +109,7 @@ public class PaperTradeServiceImpl {
 	
 	private void initAdjustmentAction(MyPosition p1, MyPosition p2) {
 		System.out.println("**************************************************************************************");
-		System.out.println("\t\t\t\t\t\tTIME TO TAKE ROBO ACTION");
+		log.info("\t\t\t\t\t\tTIME TO TAKE ROBO ACTION");
 		MyPosition posToClose = null;
 		MyPosition posToKeep = null;
 		double p1Pnl = paperUtils.getPositionPnl(p1);
@@ -111,26 +117,33 @@ public class PaperTradeServiceImpl {
 		Double otherOptPrem = 0.0;
 		if(p1Pnl >  p2Pnl) {
 			System.out.println("\t\t\tCLOSING POSITION: "+p1.getTradingSymbol());
+			log.info("\t\t\tCLOSING POSITION: "+p1.getTradingSymbol());
 			System.out.println("\t\t\tP/L of : "+p1.getTradingSymbol()+" ("+p1Pnl+") IS HIGHER THAN OF POSITION: "+p2.getTradingSymbol()+" ("+p2Pnl+")");
+			log.info("\t\t\tP/L of : "+p1.getTradingSymbol()+" ("+p1Pnl+") IS HIGHER THAN OF POSITION: "+p2.getTradingSymbol()+" ("+p2Pnl+")");
 			posToClose = p1;
 			posToKeep = p2;
 		}
 		if(p2Pnl >  p1Pnl) {
 			System.out.println("\t\t\tCLOSING POSITION: "+p2.getTradingSymbol());
+			log.info("\t\t\tCLOSING POSITION: "+p2.getTradingSymbol());
 			System.out.println("\t\t\tP/L of : "+p2.getTradingSymbol()+" ("+p2Pnl+") IS HIGHER THAN OF POSITION: "+p1.getTradingSymbol()+" ("+p1Pnl+")");
+			log.info("\t\t\tP/L of : "+p2.getTradingSymbol()+" ("+p2Pnl+") IS HIGHER THAN OF POSITION: "+p1.getTradingSymbol()+" ("+p1Pnl+")");
 			posToClose = p2;
 			posToKeep = p1;
 		}
 		otherOptPrem = posToKeep.getCurrentPrice();
 		System.out.println("\t\t\tCLOSING POSITION: "+posToClose.getTradingSymbol());
+		log.info("\t\t\tCLOSING POSITION: "+posToClose.getTradingSymbol());
 		MyPosition posToOpen = paperUtils.getNewSellPositionNearPremium(posToClose, otherOptPrem);
 		if(posToOpen == null) {
 			System.out.println("\t\t\t***NOT FOUND NEAREST OPTION");
+			log.info("\t\t\t***NOT FOUND NEAREST OPTION");
 			return;
 		}
 		paperUtils.addStopLossToSheet(posToKeep, posToOpen);
 		paperUtils.startAdjustment(posToClose, posToOpen);
 		System.out.println("\n**************************************************************************************");
+		log.info("\n**************************************************************************************");
 	}
 	
 	
