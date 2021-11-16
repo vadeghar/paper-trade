@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,8 @@ import com.algo.paper.trade.utils.ExcelUtils;
 
 @Service
 public class PaperUtils {
+	
+	Logger log = LoggerFactory.getLogger(this.getClass());
 
 	@Value("${app.paperTrade.dataDir}")
 	private String dataDir;
@@ -153,9 +157,10 @@ public class PaperUtils {
 	public void printKiteNetPositions() {
 
 		List<MyPosition> netPositions = getAllPaperPositions();
-		System.out.println("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-		System.out.println("\tTRADING SYMBOL\t\t|\tTRADE TYPE\t|\tQty\t|\tSell Price\t|\tBuy Price\t|\tCurrent Price\t|\tP/L\t| Net P/L\t|\n");
-		System.out.println("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+		StringBuilder sb = new StringBuilder();
+		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+		sb.append("\tTRADING SYMBOL\t\t|\tTRADE TYPE\t|\tQty\t|\tSell Price\t|\tBuy Price\t|\tCurrent Price\t|\tP/L\t| Net P/L\t|\n");
+		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 		String sell = Constants.SELL;
 		String buy = Constants.BUY;
 		double netPnl = 0.0;
@@ -172,7 +177,7 @@ public class PaperUtils {
 			if(p.getNetQuantity() < 0 && p.getSellPrice() < lastPrice)
 				pnl = -1 * pnl;
 			netPnl = netPnl + pnl;
-			System.out.println("\t"+p.getTradingSymbol()+
+			sb.append("\t"+p.getTradingSymbol()+
 					"\t|\t"+(p.getNetQuantity() < 0 ? sell : (p.getNetQuantity() > 0) ? buy : "CLOSED")+
 					"\t\t|\t"+p.getNetQuantity()+
 					"\t|\t\t"+String.format("%.2f",p.getSellPrice())+
@@ -182,8 +187,8 @@ public class PaperUtils {
 					"\t| "+String.format("%.2f",netPnl)+"\t"+
 					"|\n");
 		}
-		System.out.println("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-
+		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+		log.info(sb.toString());
 	}
 
 	/**
