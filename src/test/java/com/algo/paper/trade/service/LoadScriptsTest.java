@@ -2,10 +2,12 @@ package com.algo.paper.trade.service;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,8 +95,8 @@ public class LoadScriptsTest {
 
 	}
 	
-	@Test public void placeStrangleStrategyTest() {
-		paperTradeService.placeStrangleStrategy();
+	@Test public void placeStrangleStrategyTest() throws JSONException, IOException {
+		paperTradeService.monitorPaperStrangleAndDoAdjustments();
 	}
 
 

@@ -1,5 +1,7 @@
 package com.algo.paper.trade.utils;
 
+import java.text.DecimalFormat;
+
 public class Constants {
 	
 	public static final String PE = "PE";
@@ -20,4 +22,5 @@ public class Constants {
 	public static final String DAY = "DAY";
 	public static final String MARKET = "MARKET";
 	public static final String BUY = "BUY";
+	public static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.00");
 }
