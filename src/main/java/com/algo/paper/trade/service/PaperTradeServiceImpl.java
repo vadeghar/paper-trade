@@ -113,6 +113,10 @@ public class PaperTradeServiceImpl {
 	
 	@Scheduled(cron = "0/10 * * * * ?")
 	public void monitorKiteStrangleAndDoAdjustments() throws JSONException, IOException {
+		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
+			System.out.println("\n\n\n\nMARKET CLOSED");
+			return;
+		}
 		System.out.println("\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		if(isTargetAchieved()) {
 			return;
@@ -136,7 +140,7 @@ public class PaperTradeServiceImpl {
 		LTPQuote p2Ltp = ltps.get(p2Symbol);
 		
 		Double diffInPerc = priceDiffInPerc(p1Ltp.lastPrice, p2Ltp.lastPrice);
-		System.out.println("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"%\n\t\t\tWAITING FOR DIFFERENCE IF: "+adjustmentPerc+"%\n");
+		System.out.println("\t\t\tCE AND PE PRICE DIFFERENCE: "+String.format("%.2f", diffInPerc)+"%\n\t\t\tWAITING FOR DIFFERENCE IF: "+adjustmentPerc+"%");
 		Double newSellPremium = 0.0;
 		if(Double.valueOf(String.format("%.2f", diffInPerc)) > adjustmentPerc) {
 			System.out.println("**************************************************************************************");
@@ -193,8 +197,9 @@ public class PaperTradeServiceImpl {
 			netPnlDbl = Double.valueOf(netPnl);
 		}
 		System.out.println("\t\t\tCurrent P/L: "+netPnl+"\n\t\t\tTARGET: "+target);
-		if(netPnlDbl >= targetDbl) {
+		if(targetDbl != 0.0 && netPnlDbl >= targetDbl) {
 			System.out.println("\n\n\n\t\t\tTARGET IS REACHED CLOSE ALL TRADES: "+targetDbl+", Current P/L: "+netPnlDbl);
+			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 2, 7, netPnlDbl);
 			return true;
 		}
 		return false;
@@ -502,7 +507,7 @@ public class PaperTradeServiceImpl {
 				price = Double.valueOf(opstOption.getPutLTP());
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
-					ExcelUtils.prepareDataRow(opstOption.getStrikePrice()+opstExpiry+ceOrPe, 
+					ExcelUtils.prepareDataRow(opstSymbol+DateUtils.getAngelFormatExpiry(expiry)+opstOption.getStrikePrice()+ceOrPe, 
 					qty * -1, 
 					price, 
 					0, 
