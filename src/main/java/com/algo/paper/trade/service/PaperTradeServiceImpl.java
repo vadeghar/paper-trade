@@ -62,18 +62,18 @@ public class PaperTradeServiceImpl {
 			paperUtils.printKiteNetPositions();
 			return;
 		}
-		System.out.println("\n\n\n\n\n\t\t\tKITE - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
-		log.info("\n\n\n\n\n\t\t\tKITE - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
+		System.out.println("\n\n\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
+		log.info("\n\n\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		List<MyPosition> netPositions = paperUtils.getPaperNetPositions();
 		if(CollectionUtils.isEmpty(netPositions)) {
-			System.out.println("************* NO KITE POSITIONS FOUND ******************");
-			log.info("************* NO KITE POSITIONS FOUND ******************");
+			System.out.println("************* NO PAPER POSITIONS FOUND ******************");
+			log.info("************* NO PAPER POSITIONS FOUND ******************");
 			return;
 		}
 		List<MyPosition> sellPositions = netPositions.stream().filter(p -> p.getNetQuantity() < 0).collect(Collectors.toList());
 		if(sellPositions.size() > 2) {
-			System.out.println("************* FOUND MORE THAN TWO KITE POSITIONS ******************");
-			log.info("************* FOUND MORE THAN TWO KITE POSITIONS ******************");
+			System.out.println("************* FOUND MORE THAN TWO PAPER POSITIONS ******************");
+			log.info("************* FOUND MORE THAN TWO PAPER POSITIONS ******************");
 			return;
 		}
 		if(closeOnTarget) {

@@ -31,10 +31,10 @@ public class LoadScriptsTest {
 	@Autowired
 	PaperTradeServiceImpl paperTradeService;
 
-	@Value("${app.angel.nfo.dataFile}")
+//	@Value("${app.angel.nfo.dataFile}")
 	private String nfoDataFile;
 
-	@Value("${app.angel.nse.dataFile}")
+//	@Value("${app.angel.nse.dataFile}")
 	private String nseDataFile;
 //	@Test
 	public void responseEntityTest() {
@@ -96,7 +96,7 @@ public class LoadScriptsTest {
 	}
 	
 	@Test public void placeStrangleStrategyTest() throws JSONException, IOException {
-		paperTradeService.monitorPaperStrangleAndDoAdjustments();
+		paperTradeService.placeStrangleStrategy();
 	}
 
 

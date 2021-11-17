@@ -1,5 +1,6 @@
 package com.algo.paper.trade.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -125,7 +126,7 @@ public class PaperUtils {
 			Double totPrem = posToOpen.getCurrentPrice() + posToKeep.getCurrentPrice();
 			Double sl = totPrem + (totPrem * 0.1);
 			System.out.println("\t\t\tSTOP LOSS IS: "+sl);
-			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 8, sl);
+			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 10, sl);
 		}
 	}
 
@@ -188,6 +189,7 @@ public class PaperUtils {
 					"|\n");
 		}
 		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+		System.out.println(sb.toString());
 		log.info(sb.toString());
 	}
 
@@ -259,10 +261,13 @@ public class PaperUtils {
 	 */
 	public void startAdjustment(MyPosition posToClose, MyPosition posToOpen) {
 		System.out.println("************* ADJUSTMENT STARTED *********************");
+		Integer qty = 0;
+		if(posToOpen.getNetQuantity() < 0)
+			qty = 0;
 		boolean buyCompleted = buy(posToClose.getStrikePrice(), 
 				posToClose.getSymbol(), 
 				posToClose.getExpiry(),
-				posToClose.getSellQuantity(), 
+				qty, 
 				posToClose.getOptionType(),
 				posToClose.getCurrentPrice());
 
@@ -271,7 +276,7 @@ public class PaperUtils {
 		boolean sellCompleted = sell(posToOpen.getStrikePrice(), 
 				posToOpen.getSymbol(), 
 				posToOpen.getExpiry(),
-				posToOpen.getSellQuantity(), 
+				posToOpen.getSellQuantity() * -1, 
 				posToOpen.getOptionType(),
 				posToOpen.getCurrentPrice());
 		if(sellCompleted) {
@@ -303,8 +308,8 @@ public class PaperUtils {
 					StringUtils.EMPTY, 
 					price, 
 					price, 
-					0, 
-					StringUtils.EMPTY));
+					StringUtils.EMPTY, 
+					DateUtils.getDateTime(LocalDateTime.now()), price));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
 			System.out.println("************* POSITION CLOSED ***************\n ORDER ID: ");
 			return true;
@@ -341,7 +346,7 @@ public class PaperUtils {
 					0, 
 					price, 
 					0, 
-					StringUtils.EMPTY));
+					DateUtils.getDateTime(LocalDateTime.now())));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
 			System.out.println("************* OPENING POSITION ***************\n");
 			System.out.println("************* ORDER PLACED SUCCESSFULLY AT : ");
@@ -358,11 +363,11 @@ public class PaperUtils {
 	
 	public boolean checkTargetAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll =false;
-		String target = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 7);
+		String target = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 9);
 		System.out.println("\t\t\tTARGET: "+target);
 		if(StringUtils.isNotBlank(target)) {
 			Double taregtDbl = Double.valueOf(target);
-			Double netPnl = CommonUtils.getNetPnl(netPositions);
+			Double netPnl = CommonUtils.getNetPnl(getAllPaperPositions());
 			System.out.println("\t\t\tCurrent P/L: "+Constants.DECIMAL_FORMAT.format(netPnl)+" OF "+target);
 			if(netPnl >= taregtDbl) {
 				System.err.println("***** TARGET ACHIVED: TARGET:"+target+" NET P/L:"+netPnl);
@@ -374,7 +379,7 @@ public class PaperUtils {
 	
 	public boolean checkSLAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll = false;
-		String stopLoss = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 8);
+		String stopLoss = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 10);
 		if(StringUtils.isBlank(stopLoss) || Double.valueOf(stopLoss) == 0.0) {
 			System.out.println("\t\t\tSTOP LOSS: (NO STOP LOSS ADDED YET)");
 			return isClosedAll;
@@ -416,7 +421,7 @@ public class PaperUtils {
 		if(peSell) {
 			Double totalPremReceived = (Double.valueOf(ceOption.getCallLTP()) + Double.valueOf(peOption.getPutLTP())) * qty;
 			Double target = (totalPremReceived * 80) / 100;
-			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 7, target);
+			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 9, target);
 		}
 		System.out.println("*******************************************************************************************\n\n");
 	}

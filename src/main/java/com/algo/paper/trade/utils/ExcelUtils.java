@@ -51,6 +51,7 @@ public class ExcelUtils {
 	}
 	
 	//Update a specific cell in the Excel file
+	@Deprecated
 	public static void updateCellByCellZeroText(String fileFullPath, String c0Text, Integer cNumToUpdate, String textToUpdate) {
 		try {
 			FileInputStream inputStream = new FileInputStream(new File(fileFullPath));
@@ -135,6 +136,7 @@ public class ExcelUtils {
 		return cellVal;
 	}
 	
+	@Deprecated
 	public static boolean isSymbolExistInFile(String fileFullPath, String c0Text) {
 		boolean symbolExist = false;
 		try {
@@ -168,25 +170,19 @@ public class ExcelUtils {
             Workbook wb = WorkbookFactory.create(inputStream);
             Sheet sheet = wb.getSheetAt(0);
             int rowCount = getLastRow(sheet);
-//            Font headerFont = wb.createFont();
-//    		CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
-//    		cellStyle.setFont(headerFont);
-//    		cellStyle.setAlignment(HorizontalAlignment.RIGHT);
             Row row = getRowBySymbol(sheet, (String)bookRow[0]);
             if(row == null) {
             	row = sheet.createRow(rowCount-1);
             }
             Cell cell;
-            for(int i=0; i<= 6; i++) {
+            for(int i=0; i< bookRow.length; i++) {
             	if(bookRow[i] != null && StringUtils.isNotBlank(bookRow[i].toString())) {
             		cell = row.createCell(i);
-//            		cell.setCellStyle(cellStyle);
             		if(bookRow[i] instanceof String)
             			cell.setCellValue((String) bookRow[i]);
             		else if(bookRow[i] instanceof Integer)
                         cell.setCellValue((Integer)bookRow[i]);
             		else if(bookRow[i] instanceof Double) {
-//            			cellStyle.setDataFormat(wb.createDataFormat().getFormat("0.00"));
                         cell.setCellValue((Double)bookRow[i]);
             		}
             	}
@@ -263,7 +259,8 @@ public class ExcelUtils {
 	private static void addHeader(String fileFullPath) throws FileNotFoundException, IOException {
 		Workbook wb = new HSSFWorkbook();
 		Sheet sheet = wb.createSheet();
-		Object[] bookRow = prepareDataRow("Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Net P&L");
+		Object[] bookRow = {"Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Trade Time", "Price at Trade", "Net P/L", "TARGET", "S/L" };
+				//prepareDataRow("Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Trade Time");
 		int rowCount = 0;
 		Font headerFont = wb.createFont();
 		headerFont.setColor(IndexedColors.WHITE.index);
@@ -275,7 +272,7 @@ public class ExcelUtils {
 		headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
 		Row row = sheet.createRow(rowCount);
 		Cell cell;
-		for(int i=0; i< 6; i++) {
+		for(int i=0; i < bookRow.length; i++) {
 			if(i == 0)
 				sheet.setColumnWidth(i, 25 * 256);
 			else
@@ -288,12 +285,22 @@ public class ExcelUtils {
 		wb.write(outputStream);
 		wb.close();
 		outputStream.close();
-		updateCellByRowAndCellNums(fileFullPath, 0, 7, "TARGET");
-		updateCellByRowAndCellNums(fileFullPath, 0, 8, "S/L");
+//		updateCellByRowAndCellNums(fileFullPath, 0, 7, "Price at Trade");
+//		updateCellByRowAndCellNums(fileFullPath, 0, 8, "Net P/L");
+//		updateCellByRowAndCellNums(fileFullPath, 0, 9, "TARGET");
+//		updateCellByRowAndCellNums(fileFullPath, 0, 10, "S/L");
 	}
 
-	public static Object[] prepareDataRow(Object c0, Object c1, Object c2, Object c3, Object c4, Object c5, Object c6) {
+	public static Object[] prepareDataRow2(Object c0, Object c1, Object c2, Object c3, Object c4, Object c5, Object c6) {
 		Object[] headerData = {c0, c1, c2, c3, c4, c5, c6};
+		return headerData;
+	}
+	
+	public static Object[] prepareDataRow(Object... objArray) {
+		Object[] headerData = new Object[objArray.length];
+		for(int i=0;i<objArray.length;i++) {
+			headerData[i] = objArray[i];
+		}
 		return headerData;
 	}
 	
@@ -335,7 +342,7 @@ public class ExcelUtils {
 	}
 	
 	public static void updateNetPnl(Workbook wb, Sheet sheet) {
-		Cell formulaCell = sheet.getRow(1).createCell(6);
+		Cell formulaCell = sheet.getRow(1).createCell(8);
 		formulaCell.setCellFormula("SUM(F2:F1000)");
 		FormulaEvaluator formulaEvaluator = 
 				  wb.getCreationHelper().createFormulaEvaluator();

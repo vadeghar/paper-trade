@@ -1,15 +1,8 @@
 package com.algo.paper.trade.config;
 
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
-
-import com.angelbroking.smartapi.SmartConnect;
-import com.angelbroking.smartapi.models.User;
-import com.angelbroking.smartapi.smartTicker.SmartWebsocket;
-import com.angelbroking.smartapi.ticker.SmartAPITicker;
 
 @Configuration
 public class PaperTradeConfig {
