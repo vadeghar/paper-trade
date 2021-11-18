@@ -29,6 +29,9 @@ import com.algo.paper.trade.utils.ExcelUtils;
 @Service
 public class PaperUtils {
 	
+	private static final String SHEET_SL_VAL = "B2";
+	private static final String SHEET_TARGET_VAL = "B1";
+
 	Logger log = LoggerFactory.getLogger(this.getClass());
 
 	@Value("${app.paperTrade.dataDir}")
@@ -126,7 +129,7 @@ public class PaperUtils {
 			Double totPrem = posToOpen.getCurrentPrice() + posToKeep.getCurrentPrice();
 			Double sl = totPrem + (totPrem * 0.1);
 			System.out.println("\t\t\tSTOP LOSS IS: "+sl);
-			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 10, sl);
+			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_SL_VAL, Constants.DECIMAL_FORMAT.format(sl));
 		}
 	}
 
@@ -261,8 +264,9 @@ public class PaperUtils {
 	 */
 	public void startAdjustment(MyPosition posToClose, MyPosition posToOpen) {
 		System.out.println("************* ADJUSTMENT STARTED *********************");
+		log.info("************* ADJUSTMENT STARTED *********************");
 		Integer qty = 0;
-		if(posToOpen.getNetQuantity() < 0)
+		if(posToClose.getNetQuantity() < 0)
 			qty = 0;
 		boolean buyCompleted = buy(posToClose.getStrikePrice(), 
 				posToClose.getSymbol(), 
@@ -281,6 +285,7 @@ public class PaperUtils {
 				posToOpen.getCurrentPrice());
 		if(sellCompleted) {
 			System.out.println("************* ADJUSTMENT COMPLETED *********************");
+			log.info("************* ADJUSTMENT COMPLETED *********************");
 		}
 	}
 
@@ -300,6 +305,7 @@ public class PaperUtils {
 	public boolean buy(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price) {
 		try {
 			System.out.println("************* NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
+			log.info("NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
@@ -316,7 +322,9 @@ public class PaperUtils {
 		} catch (JSONException e) {
 			e.printStackTrace();
 			System.out.println("******************* "+e.getLocalizedMessage()+" ******************************");
-			System.out.println("*************  PROBLEM WHILE PLACING A NEW ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			System.out.println("*************  PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			log.error(e.getLocalizedMessage());
+			log.error("PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			CommonUtils.beep();
 		}
 		return false;
@@ -336,7 +344,8 @@ public class PaperUtils {
 	 */
 	public boolean sell(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price) {
 		try {
-			System.out.println("************* NEW SELL POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
+			System.out.println("************* SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
+			log.info("SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
@@ -348,13 +357,15 @@ public class PaperUtils {
 					0, 
 					DateUtils.getDateTime(LocalDateTime.now())));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
-			System.out.println("************* OPENING POSITION ***************\n");
-			System.out.println("************* ORDER PLACED SUCCESSFULLY AT : ");
+			System.out.println("************* SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
+			log.info("SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
 			return true;
 		} catch (JSONException e) {
 			e.printStackTrace();
 			System.out.println("******************* "+e.getLocalizedMessage()+" ******************************");
-			System.out.println("************* PROBLEM WHILE PLACING A NEW ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			System.out.println("************* PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			log.error(e.getLocalizedMessage());
+			log.error("PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			CommonUtils.beep();
 		}
 		return false;
@@ -363,7 +374,7 @@ public class PaperUtils {
 	
 	public boolean checkTargetAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll =false;
-		String target = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 9);
+		String target = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_TARGET_VAL);
 		System.out.println("\t\t\tTARGET: "+target);
 		if(StringUtils.isNotBlank(target)) {
 			Double taregtDbl = Double.valueOf(target);
@@ -371,7 +382,7 @@ public class PaperUtils {
 			System.out.println("\t\t\tCurrent P/L: "+Constants.DECIMAL_FORMAT.format(netPnl)+" OF "+target);
 			if(netPnl >= taregtDbl) {
 				System.err.println("***** TARGET ACHIVED: TARGET:"+target+" NET P/L:"+netPnl);
-				isClosedAll = closeAll(netPositions);
+				isClosedAll = closeAllSellPositions(netPositions);
 			}
 		}
 		return isClosedAll;
@@ -379,18 +390,19 @@ public class PaperUtils {
 	
 	public boolean checkSLAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll = false;
-		String stopLoss = ExcelUtils.getCellValByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 10);
+		String stopLoss = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_SL_VAL);
 		if(StringUtils.isBlank(stopLoss) || Double.valueOf(stopLoss) == 0.0) {
 			System.out.println("\t\t\tSTOP LOSS: (NO STOP LOSS ADDED YET)");
 			return isClosedAll;
 		}
 		System.out.println("\t\t\tSTOP LOSS: "+stopLoss);
 		if(StringUtils.isNotBlank(stopLoss)) {
-			Double stopLossDbl = Double.valueOf(stopLoss);
-			Double netPrice = CommonUtils.getNetPrice(netPositions);
-			if(netPrice  >= stopLossDbl) {
-				System.err.println("STOP LOSS HIT: "+stopLossDbl+" NET PRICE OF EXISTING POSITIONS: "+netPrice);
-				isClosedAll = closeAll(netPositions);
+			Double stopLossPremium = Double.valueOf(stopLoss);
+			Double netPremiumHave = CommonUtils.getNetPremiumCollected(netPositions);
+			if(netPremiumHave  >= stopLossPremium) {
+				System.err.println("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
+				log.info("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
+				isClosedAll = closeAllSellPositions(netPositions);
 			}
 		}
 		return isClosedAll;
@@ -420,17 +432,31 @@ public class PaperUtils {
 		}
 		if(peSell) {
 			Double totalPremReceived = (Double.valueOf(ceOption.getCallLTP()) + Double.valueOf(peOption.getPutLTP())) * qty;
-			Double target = (totalPremReceived * 80) / 100;
-			ExcelUtils.updateCellByRowAndCellNums(ExcelUtils.getCurrentFileNameWithPath(dataDir), 1, 9, target);
+			Double totalTarget = (totalPremReceived * 80) / 100;
+			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_TARGET_VAL, Constants.DECIMAL_FORMAT.format(totalTarget));
 		}
 		System.out.println("*******************************************************************************************\n\n");
 	}
 	
-	private boolean closeAll(List<MyPosition> netPositions) {
+	private boolean closeAllSellPositions(List<MyPosition> netPositions) {
 		boolean closed = false;
 		try {
 			for(MyPosition p: netPositions) {
-				closed |= buy(p.getStrikePrice(), p.getSymbol(), p.getExpiry(), p.getSellQuantity(), p.getOptionType(), p.getCurrentPrice());
+				if(p.getNetQuantity() < 0)
+					closed |= buy(p.getStrikePrice(), p.getSymbol(), p.getExpiry(), p.getSellQuantity(), p.getOptionType(), p.getCurrentPrice());
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return closed;
+	}
+	
+	private boolean closeAllBuyPositions(List<MyPosition> netPositions) {
+		boolean closed = false;
+		try {
+			for(MyPosition p: netPositions) {
+				if(p.getNetQuantity() > 0)
+					closed |= sell(p.getStrikePrice(), p.getSymbol(), p.getExpiry(), p.getBuyQuantity(), p.getOptionType(), p.getCurrentPrice());
 			}
 		} catch(Exception e) {
 			e.printStackTrace();

@@ -70,10 +70,11 @@ public class CommonUtils {
 		return netPnl;
 	}
 	
-	public static Double getNetPrice(List<MyPosition> netPositions) {
+	public static Double getNetPremiumCollected(List<MyPosition> netPositions) {
 		Double netPrice = 0.0;
 		for(MyPosition p : netPositions) {
-			netPrice = p.getCurrentPrice() != null ? (netPrice + p.getCurrentPrice()) : 0.0;
+			if(p.getNetQuantity() < 0)
+				netPrice = p.getCurrentPrice() != null ? (netPrice + p.getCurrentPrice()) : 0.0;
 		}
 		return netPrice;
 	}

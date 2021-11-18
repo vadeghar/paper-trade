@@ -26,8 +26,15 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.util.CellAddress;
+import org.apache.poi.ss.util.CellReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExcelUtils {
+	
+	static Logger log = LoggerFactory.getLogger(ExcelUtils.class);
+	private static final int SHEET_TRADES_ROW_START_NO = 3; // 2 is an index, actual row number is 3
 	static String fileNamePrefix = "trades_";
 	static String ext = "xlsx";
 	
@@ -83,12 +90,18 @@ public class ExcelUtils {
 	 * @param cellNo
 	 * @param textToUpdate
 	 */
-	public static void updateCellByRowAndCellNums(String fileFullPath, int rowNo, int cellNo, Object textToUpdate) {
+	public static void updateCellByRowAndCellNums(String fileFullPath, int rowNo, int cellNo, Object textToUpdate, boolean isHeader) {
 		try {
-			FileInputStream inputStream = new FileInputStream(new File(fileFullPath));
+			FileInputStream inputStream = new FileInputStream(new File(fileFullPath)); 
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);
+            CellStyle headerCellStyle = null;
+            if(isHeader) {
+            	headerCellStyle = getHeaderCellStyle(sheet, workbook);
+            }
             Row row = sheet.getRow(rowNo);
+            if(row == null)
+            	row = sheet.createRow(rowNo);
             Cell cell2Update = row.createCell(cellNo);
             if(textToUpdate instanceof String)
             	cell2Update.setCellValue((String) textToUpdate);
@@ -97,6 +110,8 @@ public class ExcelUtils {
 			else if(textToUpdate instanceof Double) {
 				cell2Update.setCellValue((Double)textToUpdate);
 			}
+            if(headerCellStyle != null)
+            	cell2Update.setCellStyle(headerCellStyle);
             inputStream.close();
             FileOutputStream outputStream = new FileOutputStream(fileFullPath);
             workbook.write(outputStream);
@@ -172,7 +187,7 @@ public class ExcelUtils {
             int rowCount = getLastRow(sheet);
             Row row = getRowBySymbol(sheet, (String)bookRow[0]);
             if(row == null) {
-            	row = sheet.createRow(rowCount-1);
+            	row = sheet.createRow(rowCount+1);
             }
             Cell cell;
             for(int i=0; i< bookRow.length; i++) {
@@ -229,6 +244,7 @@ public class ExcelUtils {
 	 * @param bookData
 	 */
 	public static void addOrUpdateRows(String fileFullPath, List<Object[]> bookRows) {
+		log.info("addOrUpdateRows>");
 		try {
             for(Object[] bookRow: bookRows) {
             	addOrUpdateRow(fileFullPath, bookRow);
@@ -236,6 +252,7 @@ public class ExcelUtils {
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
+		log.info("<addOrUpdateRows");
 	}
 	
 	private static Row getRowBySymbol(Sheet sheet, String symbol) {
@@ -247,7 +264,7 @@ public class ExcelUtils {
 	}
 
 	private static int getLastRow(Sheet sheet) {
-		int i = 1;
+		int i = 0;
 		for (Row r : sheet) {
             if(r.getCell(0) == null || StringUtils.isBlank(r.getCell(0).toString())) 
             	break;
@@ -259,18 +276,10 @@ public class ExcelUtils {
 	private static void addHeader(String fileFullPath) throws FileNotFoundException, IOException {
 		Workbook wb = new HSSFWorkbook();
 		Sheet sheet = wb.createSheet();
-		Object[] bookRow = {"Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Trade Time", "Price at Trade", "Net P/L", "TARGET", "S/L" };
+		Object[] bookRow = {"Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Ex Time", "Close Time"};
 				//prepareDataRow("Position","Qty", "Sell Price", "Buy Price", "Current Price", "P&L", "Trade Time");
-		int rowCount = 0;
-		Font headerFont = wb.createFont();
-		headerFont.setColor(IndexedColors.WHITE.index);
-		headerFont.setBold(true);
-		CellStyle headerCellStyle = sheet.getWorkbook().createCellStyle();
-		headerCellStyle.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.index);
-		headerCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-		headerCellStyle.setFont(headerFont);
-		headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
-		Row row = sheet.createRow(rowCount);
+		CellStyle headerCellStyle = getHeaderCellStyle(sheet, wb);
+		Row row = sheet.createRow(SHEET_TRADES_ROW_START_NO);
 		Cell cell;
 		for(int i=0; i < bookRow.length; i++) {
 			if(i == 0)
@@ -285,10 +294,21 @@ public class ExcelUtils {
 		wb.write(outputStream);
 		wb.close();
 		outputStream.close();
-//		updateCellByRowAndCellNums(fileFullPath, 0, 7, "Price at Trade");
-//		updateCellByRowAndCellNums(fileFullPath, 0, 8, "Net P/L");
-//		updateCellByRowAndCellNums(fileFullPath, 0, 9, "TARGET");
-//		updateCellByRowAndCellNums(fileFullPath, 0, 10, "S/L");
+		updateCellByRowAndCellNums(fileFullPath, 0, 0, "TARGET", true);
+		updateCellByRowAndCellNums(fileFullPath, 1, 0, "S/L Credit If", true);
+		updateCellByRowAndCellNums(fileFullPath, 1, 2, "Net P/L", true);
+	}
+
+	private static CellStyle getHeaderCellStyle(Sheet sheet, Workbook wb) {
+		Font headerFont = wb.createFont();
+		headerFont.setColor(IndexedColors.WHITE.index);
+		headerFont.setBold(true);
+		CellStyle headerCellStyle = sheet.getWorkbook().createCellStyle();
+		headerCellStyle.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.index);
+		headerCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+		headerCellStyle.setFont(headerFont);
+		headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
+		return headerCellStyle;
 	}
 
 	public static Object[] prepareDataRow2(Object c0, Object c1, Object c2, Object c3, Object c4, Object c5, Object c6) {
@@ -305,11 +325,13 @@ public class ExcelUtils {
 	}
 	
 	public static String getCurrentFileNameWithPath(String dir) {
+		log.info("getCurrentFileNameWithPath>");
 		String fileName = "trades_"+getLastGenerateFileNo(dir);
 		fileName = dir+File.separator+fileName+"."+ext;
 		File file = new File(fileName);
 		if(!file.exists())
 			ExcelUtils.createExcelFile(dir);
+		log.info("<getCurrentFileNameWithPath");
 		return fileName;
 	}
 	
@@ -342,7 +364,7 @@ public class ExcelUtils {
 	}
 	
 	public static void updateNetPnl(Workbook wb, Sheet sheet) {
-		Cell formulaCell = sheet.getRow(1).createCell(8);
+		Cell formulaCell = sheet.getRow(1).createCell(3);
 		formulaCell.setCellFormula("SUM(F2:F1000)");
 		FormulaEvaluator formulaEvaluator = 
 				  wb.getCreationHelper().createFormulaEvaluator();
@@ -350,28 +372,81 @@ public class ExcelUtils {
 	}
 	
 	public static String[][] getFileData(String filePath) {
+		log.info("getFileData>");
+		log.info("READING FILE: "+filePath);
 		String[][] dataTable = null;
 		try {
 			FileInputStream inputStream = new FileInputStream(new File(filePath));
 			Workbook wb = WorkbookFactory.create(inputStream);
 			Sheet sheet = wb.getSheetAt(0);
-			int noOfRows = getLastRow(sheet) + 1;
+			int noOfRows = getLastRow(sheet);
+			log.info("TOTAL ROWS FOUND "+noOfRows);
 			int noOfColumns = sheet.getRow(0).getLastCellNum();
+			log.info("Cell count iin first row: "+noOfColumns);
 			dataTable = new String[noOfRows][noOfColumns];
-			for (int i = sheet.getFirstRowNum(); i < sheet.getLastRowNum() + 1; i++) {
+			for (int i = SHEET_TRADES_ROW_START_NO; i < noOfRows; i++) {
 			    Row row = sheet.getRow(i);
+			    noOfColumns = row.getLastCellNum();
+			    log.info("COLUMNS IN ROW: "+i+": "+noOfColumns);
 			    for (int j = row.getFirstCellNum(); j < noOfColumns; j++) {
 			        Cell cell = row.getCell(j);
-			        dataTable[i][j] = getCellValueAsString(wb, cell);
+			        String cellData = getCellValueAsString(wb, cell);
+			        log.info("Row: "+i+", Column : "+j+" value is :"+cellData);
+			        dataTable[i][j] = cellData;
 			    }
 			}
 			wb.close();
+			inputStream.close();
 		} catch (EncryptedDocumentException | InvalidFormatException | IOException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		log.info("<getFileData");
 	    return dataTable;
+	}
+	
+	public static String getValueByCellReference(String filePath, String cellRef) {
+		String cellVal = StringUtils.EMPTY;
+		try {
+			FileInputStream inputStream = new FileInputStream(new File(filePath));
+			Workbook wb = WorkbookFactory.create(inputStream);
+			Sheet sheet = wb.getSheetAt(0);
+			CellReference cr = new CellReference(cellRef);
+			Row row = sheet.getRow(cr.getRow());
+			Cell cell = row.getCell(cr.getCol());
+			cellVal = getCellValueAsString(wb, cell);
+			wb.close();
+			return cellVal;
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		return cellVal;
+	}
+	
+	public static void setValueByCellReference(String filePath, String cellRef, String value) {
+		try {
+			FileInputStream inputStream = new FileInputStream(new File(filePath));
+			Workbook wb = WorkbookFactory.create(inputStream);
+			Sheet sheet = wb.getSheetAt(0);
+			
+			
+			CellAddress cellAddress = new CellAddress(cellRef);
+			Cell updatedCell = sheet.getRow(cellAddress.getRow()).getCell(cellAddress.getColumn());
+
+			// if cell is null than create the cell
+			if(updatedCell == null){
+				sheet.getRow(cellAddress.getRow()).createCell(cellAddress.getColumn());
+				updatedCell = sheet.getRow(cellAddress.getRow()).createCell(cellAddress.getColumn());
+			}
+			updatedCell.setCellValue(value);
+			inputStream.close();
+            FileOutputStream outputStream = new FileOutputStream(filePath);
+            wb.write(outputStream);
+			wb.close();
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private static String getCellValueAsString(Workbook wb, Cell cell) {
