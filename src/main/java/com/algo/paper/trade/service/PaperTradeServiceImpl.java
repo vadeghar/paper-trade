@@ -16,9 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.algo.model.MyPosition;
-import com.algo.paper.trade.utils.CommonUtils;
-import com.algo.paper.trade.utils.Constants;
-import com.algo.paper.trade.utils.DateUtils;
+import com.algo.utils.CommonUtils;
+import com.algo.utils.Constants;
+import com.algo.utils.DateUtils;
 
 @Service
 public class PaperTradeServiceImpl {
@@ -56,12 +56,12 @@ public class PaperTradeServiceImpl {
 	
 	@Scheduled(cron = "0/10 * * * * ?")
 	public void monitorPaperStrangleAndDoAdjustments() throws JSONException, IOException {
-		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
-			System.out.println("\n\n\n\nMARKET CLOSED");
-			log.info("MARKET CLOSED");
-			paperUtils.printKiteNetPositions();
-			return;
-		}
+//		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
+//			System.out.println("\n\n\n\nMARKET CLOSED");
+//			log.info("MARKET CLOSED");
+//			paperUtils.printPositions();
+//			return;
+//		}
 		System.out.println("\n\n\n\n\n\t\t\tPAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		log.info("PAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		List<MyPosition> netPositions = paperUtils.getPaperNetPositions();
@@ -102,8 +102,8 @@ public class PaperTradeServiceImpl {
 		if(Double.valueOf(String.format("%.2f", diffInPerc)) > adjustmentPerc) {
 			initAdjustmentAction(p1, p2);
 		}
-		paperUtils.printKiteNetPositions();
-		paperUtils.updteTradeFile();
+		paperUtils.printPositions();
+		paperUtils.updteTradeFile(false);
 		
 	}
 	

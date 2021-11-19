@@ -21,8 +21,8 @@ import com.algo.model.LTPQuote;
 import com.algo.opstra.model.OpstOptionChain;
 import com.algo.opstra.model.OpstOptionData;
 import com.algo.opstra.model.OpstraResponse;
-import com.algo.paper.trade.utils.CommonUtils;
-import com.algo.paper.trade.utils.Constants;
+import com.algo.utils.CommonUtils;
+import com.algo.utils.Constants;
 
 @Service
 public class OpstraConnect {
@@ -65,7 +65,7 @@ public class OpstraConnect {
 		HttpEntity entity = new HttpEntity(headers);
 		Map<String, LTPQuote> ltps = new HashMap<>();
 		for(String symbol : symbols) {
-			String url = optionPrice+CommonUtils.getSymbol(symbol)+"&"+CommonUtils.getExpiry(symbol)+"&"+CommonUtils.getStrikePrice(symbol)+"&"+CommonUtils.getOptionType(symbol);
+			String url = optionPrice+CommonUtils.getOpstraSymbol(symbol)+"&"+CommonUtils.getOpstraExpiry(symbol)+"&"+CommonUtils.getOpstraStrikePrice(symbol)+"&"+CommonUtils.getOpstraOptionType(symbol);
 			ResponseEntity<OpstraResponse> response = restTemplate.exchange(url, HttpMethod.GET, entity, OpstraResponse.class);
 			if(response.getStatusCode() == HttpStatus.OK) {
 				OpstraResponse resp = response.getBody();

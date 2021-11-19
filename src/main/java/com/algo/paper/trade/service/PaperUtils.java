@@ -21,10 +21,10 @@ import org.springframework.stereotype.Service;
 import com.algo.model.LTPQuote;
 import com.algo.model.MyPosition;
 import com.algo.opstra.model.OpstOptionData;
-import com.algo.paper.trade.utils.CommonUtils;
-import com.algo.paper.trade.utils.Constants;
-import com.algo.paper.trade.utils.DateUtils;
-import com.algo.paper.trade.utils.ExcelUtils;
+import com.algo.utils.CommonUtils;
+import com.algo.utils.Constants;
+import com.algo.utils.DateUtils;
+import com.algo.utils.ExcelUtils;
 
 @Service
 public class PaperUtils {
@@ -64,10 +64,10 @@ public class PaperUtils {
 				for(MyPosition p: paperPositions) {
 					MyPosition myPosition = new MyPosition();
 					myPosition.setTradingSymbol(p.getTradingSymbol());
-					myPosition.setSymbol(CommonUtils.getSymbol(p.getTradingSymbol()));
-					myPosition.setExpiry(CommonUtils.getExpiry(p.getTradingSymbol()));
-					myPosition.setStrikePrice(CommonUtils.getStrikePrice(p.getTradingSymbol()));
-					myPosition.setOptionType(CommonUtils.getOptionType(p.getTradingSymbol()));
+					myPosition.setSymbol(CommonUtils.getOpstraSymbol(p.getTradingSymbol()));
+					myPosition.setExpiry(CommonUtils.getOpstraExpiry(p.getTradingSymbol()));
+					myPosition.setStrikePrice(CommonUtils.getOpstraStrikePrice(p.getTradingSymbol()));
+					myPosition.setOptionType(CommonUtils.getOpstraOptionType(p.getTradingSymbol()));
 					myPosition.setBuyPrice(p.getBuyPrice());
 					myPosition.setSellPrice(p.getSellPrice());
 					myPosition.setNetQuantity(p.getNetQuantity());
@@ -77,7 +77,7 @@ public class PaperUtils {
 					myPosition.setBuyQuantity(p.getNetQuantity() > 0 ? Math.abs(p.getNetQuantity()) : 0);
 					myNetPositions.add(myPosition);
 				}
-				setKiteCurrentPrices(myNetPositions);
+				setPaperCurrentPrices(myNetPositions);
 			}
 			myNetPositions = myNetPositions.stream().sorted(Comparator.comparing(MyPosition::getTradingSymbol)).collect(Collectors.toList());
 		} catch (Exception e) {
@@ -98,23 +98,23 @@ public class PaperUtils {
 			System.out.println("\t\t\tFINDING CALL OPTION AT PRICE: "+newSellPremium);
 			List<String> nearestTenSymbols = getNearestTenKiteSymbols(posToClose);
 			Map<String, LTPQuote> ltps = opstraConnect.getLTP(nearestTenSymbols);
-			String tradeSymbol = compareLastPriceBy(newSellPremium, ltps, 1);
+			String tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 1);
 			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = compareLastPriceBy(newSellPremium, ltps, 2);
+				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 2);
 			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = compareLastPriceBy(newSellPremium, ltps, 3);
+				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 3);
 			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = compareLastPriceBy(newSellPremium, ltps, 4);
+				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 4);
 			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = compareLastPriceBy(newSellPremium, ltps, 5);
+				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 5);
 			if(tradeSymbol == null)
 				return null;
 			posToOpen.setTradingSymbol(tradeSymbol);
 			posToOpen.setExpiry(posToClose.getExpiry());
 			posToOpen.setOptionType(posToClose.getOptionType());
 			posToOpen.setCurrentPrice(ltps.get(tradeSymbol).lastPrice);
-			posToOpen.setStrikePrice(CommonUtils.getStrikePrice(posToOpen.getTradingSymbol()));
-			posToOpen.setSymbol(CommonUtils.getSymbol(posToOpen.getTradingSymbol()));
+			posToOpen.setStrikePrice(CommonUtils.getOpstraStrikePrice(posToOpen.getTradingSymbol()));
+			posToOpen.setSymbol(CommonUtils.getOpstraSymbol(posToOpen.getTradingSymbol()));
 			posToOpen.setSellQuantity(posToClose.getSellQuantity()); // Same quantity
 		} catch (JSONException e) {
 			e.printStackTrace();
@@ -123,21 +123,14 @@ public class PaperUtils {
 	}
 	
 	public void addStopLossToSheet(MyPosition posToKeep, MyPosition posToOpen) {
-		String otherStrikePrice = posToKeep.getStrikePrice();
-		if(Integer.valueOf(posToOpen.getStrikePrice()) <= Integer.valueOf(otherStrikePrice)) {
-			System.out.println("\t\t\t** POSITION IS STRADDLE NOW, ADDING STOP LOSS **");
-			Double totPrem = posToOpen.getCurrentPrice() + posToKeep.getCurrentPrice();
-			Double sl = totPrem + (totPrem * 0.1);
-			System.out.println("\t\t\tSTOP LOSS IS: "+sl);
-			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_SL_VAL, Constants.DECIMAL_FORMAT.format(sl));
-		}
+		CommonUtils.addStopLossToSheet(posToKeep, posToOpen, dataDir);
 	}
 
 	/**
 	 * Set the CMP on all net positions
 	 * @param myNetPositions
 	 */
-	private void setKiteCurrentPrices(List<MyPosition> myNetPositions) {
+	private void setPaperCurrentPrices(List<MyPosition> myNetPositions) {
 		List<String> symbols = new ArrayList<>();
 		Map<String, LTPQuote> ltps = new HashMap<>();
 		try {
@@ -150,7 +143,7 @@ public class PaperUtils {
 		}
 		for(MyPosition p: myNetPositions) {
 			p.setCurrentPrice(ltps.get(p.getTradingSymbol()) !=null ? ltps.get(p.getTradingSymbol()).lastPrice : null);
-			getPositionPnl(p);
+			CommonUtils.getPositionPnl(p);
 		}
 
 	}
@@ -158,99 +151,18 @@ public class PaperUtils {
 	/**
 	 * Print net positions on console
 	 */
-	public void printKiteNetPositions() {
-
-		List<MyPosition> netPositions = getAllPaperPositions();
-		StringBuilder sb = new StringBuilder("\n");
-		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-		sb.append("\tTRADING SYMBOL\t\t|\tTRADE TYPE\t|\tQty\t|\tSell Price\t|\tBuy Price\t|\tCurrent Price\t|\tP/L\t| Net P/L\t|\n");
-		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-		String sell = Constants.SELL;
-		String buy = Constants.BUY;
-		double netPnl = 0.0;
-		for(MyPosition p: netPositions) {
-			double lastPrice = p.getCurrentPrice();
-			double pnl = 0.0;
-			if(p.getNetQuantity() == 0) {
-				pnl = p.getPositionPnl();
-			} else {
-				pnl = (p.getSellPrice() - lastPrice) * p.getNetQuantity();
-			}
-			if(p.getNetQuantity() < 0 && p.getSellPrice() > lastPrice)
-				pnl = Math.abs(pnl);
-			if(p.getNetQuantity() < 0 && p.getSellPrice() < lastPrice)
-				pnl = -1 * pnl;
-			netPnl = netPnl + pnl;
-			sb.append("\t"+p.getTradingSymbol()+
-					"\t|\t"+(p.getNetQuantity() < 0 ? sell : (p.getNetQuantity() > 0) ? buy : "CLOSED")+
-					"\t\t|\t"+p.getNetQuantity()+
-					"\t|\t\t"+String.format("%.2f",p.getSellPrice())+
-					"\t|\t"+String.format("%.2f",p.getBuyPrice())+
-					"\t\t|\t"+String.format("%.2f",lastPrice)+
-					"\t\t|\t"+String.format("%.2f",pnl)+
-					"\t| "+String.format("%.2f",netPnl)+"\t"+
-					"|\n");
-		}
-		sb.append("\t-------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-		System.out.println(sb.toString());
-		log.info(sb.toString());
+	public void printPositions() {
+		CommonUtils.printAllPositionsFromSheet(dataDir);
 	}
-
-	/**
-	 * Gives the current position's pnl and set this pnl on same object
-	 * @param p
-	 * @return
-	 */
-	public double getPositionPnl(MyPosition p) {
-		double lastPrice = p.getCurrentPrice();
-		double pnl = 0.0;
-		if(p.getNetQuantity() == 0) {
-			pnl = p.getPositionPnl();
-		} else {
-			pnl = (p.getSellPrice() - lastPrice) * p.getNetQuantity();
-		}
-		if(p.getNetQuantity() < 0 && p.getSellPrice() > lastPrice)
-			pnl = Math.abs(pnl);
-		if(p.getNetQuantity() < 0 && p.getSellPrice() < lastPrice)
-			pnl = -1 * pnl;
-		p.setPositionPnl(pnl);
-		return pnl;
-	}
-
+	
 	/**
 	 * Updates the excel sheet with current trades with pnl
 	 */
-	public void updteTradeFile() {
+	public void updteTradeFile(boolean isNewPositions) {
 		try {
-			List<MyPosition> netPositions = getPaperNetPositions();
-			updateCMPForOldStrikesInFile();
-			List<Object[]> netPositionRows = new ArrayList<>();
-			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
-			double netPnl = 0.0;
-			for(MyPosition position : netPositions) {
-				double lastPrice = position.getCurrentPrice();
-				double pnl = 0.0;
-				if(position.getNetQuantity() == 0) {
-					pnl = position.getPositionPnl();
-				} else {
-					pnl = (position.getSellPrice() - lastPrice) * position.getNetQuantity();
-				}
-				if(position.getNetQuantity() < 0 && position.getSellPrice() > lastPrice)
-					pnl = Math.abs(pnl);
-				if(position.getNetQuantity() < 0 && position.getSellPrice() < lastPrice)
-					pnl = -1 * pnl;
-				netPnl = netPnl + pnl;
-				netPositionRows.add(
-						ExcelUtils.prepareDataRow(position.getTradingSymbol(), 
-								position.getNetQuantity(), 
-								position.getSellPrice(), 
-								position.getBuyPrice(), 
-								Double.valueOf(lastPrice), 
-								Double.valueOf(pnl), 
-								StringUtils.EMPTY));
-
-			} 
-			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
+//			List<MyPosition> netPositions = CommonUtils.getAllPaperPositions(dataDir);
+			updateLatestPricesInFile();
+			//CommonUtils.updateExcelSheet(dataDir, netPositions, isNewPositions);
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -376,7 +288,7 @@ public class PaperUtils {
 		System.out.println("\t\t\tTARGET: "+target);
 		if(StringUtils.isNotBlank(target)) {
 			Double taregtDbl = Double.valueOf(target);
-			Double netPnl = CommonUtils.getNetPnl(getAllPaperPositions());
+			Double netPnl = CommonUtils.getNetPnl(CommonUtils.getAllPaperPositions(dataDir));
 			System.out.println("\t\t\tCurrent P/L: "+Constants.DECIMAL_FORMAT.format(netPnl)+" OF "+target);
 			if(netPnl >= taregtDbl) {
 				System.err.println("***** TARGET ACHIVED: TARGET:"+target+" NET P/L:"+netPnl);
@@ -462,9 +374,9 @@ public class PaperUtils {
 		return closed;
 	}
 
-	private void updateCMPForOldStrikesInFile() {
-		List<MyPosition> netPositions = getAllPaperPositions();
-		List<String> tradingSymbols = getSymbols(netPositions);
+	private void updateLatestPricesInFile() {
+		List<MyPosition> netPositions = CommonUtils.getAllPaperPositions(dataDir);
+		List<String> tradingSymbols = ExcelUtils.getAllSymbols(ExcelUtils.getCurrentFileNameWithPath(dataDir));
 		Map<String, LTPQuote> ltps = opstraConnect.getLTP(tradingSymbols);
 		List<Object[]> netPositionRows = new ArrayList<>();
 		String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
@@ -482,41 +394,23 @@ public class PaperUtils {
 			if(position.getNetQuantity() < 0 && position.getSellPrice() < lastPrice)
 				pnl = -1 * pnl;
 			netPnl = netPnl + pnl;
+			
 			netPositionRows.add(
-					ExcelUtils.prepareDataRow(position.getTradingSymbol(), 
-					position.getNetQuantity(), 
-					position.getSellPrice(), 
-					position.getBuyPrice(), 
-					Double.valueOf(lastPrice), 
-					Double.valueOf(pnl), 
-					StringUtils.EMPTY));
+					ExcelUtils.prepareDataRow(position.getTradingSymbol(), // Position
+							StringUtils.EMPTY, // Wty
+							StringUtils.EMPTY, // Sell Price
+							StringUtils.EMPTY, // Buy Price
+							Double.valueOf(lastPrice), // Current Price
+							pnl, //P&L
+							StringUtils.EMPTY, //Ex Time
+							StringUtils.EMPTY // Close Time
+							));
 			
 		} // For loop end
 		//System.out.println(" TRADES: "+netPositionRows.size());
 		ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
 	}
 
-
-
-
-
-
-	private List<String> getSymbols(List<MyPosition> netPositions) {
-		List<String> allSymbols = new ArrayList<>();
-		for(MyPosition p : netPositions) {
-			allSymbols.add(p.getTradingSymbol());
-		}
-		return allSymbols;
-	}
-
-	private String compareLastPriceBy(Double priceNear, Map<String, LTPQuote> ltps, double d) {
-		for(Entry<String, LTPQuote> e: ltps.entrySet()) {
-			if(e.getValue().lastPrice >= (priceNear-d) && e.getValue().lastPrice <= (priceNear+d)) {
-				return e.getKey();
-			}
-		}
-		return null;
-	}
 
 
 	//NIFTY&25NOV2021&17650&CE - NIFTY18NOV202118300CE
@@ -544,38 +438,13 @@ public class PaperUtils {
 	
 	
 	private List<MyPosition> getNetPaperPositions() {
-		List<MyPosition> netPositions = getAllPaperPositions();
+		List<MyPosition> netPositions = CommonUtils.getAllPaperPositions(dataDir);
 		netPositions = netPositions.stream().filter(p -> p.getNetQuantity() != 0.0).collect(Collectors.toList());
 		return netPositions;
 	}
 	
-	private List<MyPosition> getAllPaperPositions() {
-		String paperTradeFile = ExcelUtils.getCurrentFileNameWithPath(dataDir);
-		String[][] data = ExcelUtils.getFileData(paperTradeFile);
-		List<MyPosition> allPositions = new ArrayList<>();
-		int i = 0;
-		for(String[] row : data) {
-			if(i == 0) {
-				i++;
-				continue;
-			}
-			//Position	Qty	Sell Price	Buy Price	Current Price	P&L	Net P&L
-			if(StringUtils.isBlank(row[0])) {
-				i++;
-				continue;
-			}
-			MyPosition p = new MyPosition();
-			p.setTradingSymbol(row[0]); // Col: Position
-			p.setNetQuantity(Double.valueOf(row[1]).intValue()); // Col: Qty
-			p.setSellPrice(Double.valueOf(row[2])); // Col: Sell Price
-			p.setBuyPrice(Double.valueOf(row[3])); // Col: Buy Price
-			p.setCurrentPrice(Double.valueOf(row[4])); // Col: Current Price
-			p.setPositionPnl(Double.valueOf(row[5])); // Col: P&L
-			p.setStartDate(StringUtils.isNotBlank(row[6]) ?  row[6] : null); // Col: Ex Time
-			p.setEndDate(StringUtils.isNotBlank(row[7]) ?  row[7] : null); // Col: Close Time
-			allPositions.add(p);
-		}
-		return allPositions;
+	public double getPositionPnl(MyPosition p1) {
+		return CommonUtils.getPositionPnl(p1);
 	}
 
 	
