@@ -17,10 +17,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.algo.paper.trade.model.LTPQuote;
-import com.algo.paper.trade.model.OpstOptionChain;
-import com.algo.paper.trade.model.OpstOptionData;
-import com.algo.paper.trade.model.OpstraResponse;
+import com.algo.model.LTPQuote;
+import com.algo.opstra.model.OpstOptionChain;
+import com.algo.opstra.model.OpstOptionData;
+import com.algo.opstra.model.OpstraResponse;
 import com.algo.paper.trade.utils.CommonUtils;
 import com.algo.paper.trade.utils.Constants;
 

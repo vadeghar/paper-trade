@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.algo.paper.trade.model.MyPosition;
+import com.algo.model.MyPosition;
 import com.algo.paper.trade.utils.CommonUtils;
 import com.algo.paper.trade.utils.Constants;
 import com.algo.paper.trade.utils.DateUtils;
@@ -88,7 +88,7 @@ public class PaperTradeServiceImpl {
 				return;
 		}
 		
-		List<MyPosition> buyPositions = netPositions.stream().filter(p -> p.getNetQuantity() > 0).collect(Collectors.toList());
+		//List<MyPosition> buyPositions = netPositions.stream().filter(p -> p.getNetQuantity() > 0).collect(Collectors.toList());
 		MyPosition p1 = sellPositions.get(0);
 		MyPosition p2 = sellPositions.get(1);
 		Double diffInPerc = CommonUtils.priceDiffInPerc(p1.getCurrentPrice(), p2.getCurrentPrice());

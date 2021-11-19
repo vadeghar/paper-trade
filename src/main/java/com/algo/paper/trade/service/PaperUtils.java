@@ -18,9 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.algo.paper.trade.model.LTPQuote;
-import com.algo.paper.trade.model.MyPosition;
-import com.algo.paper.trade.model.OpstOptionData;
+import com.algo.model.LTPQuote;
+import com.algo.model.MyPosition;
+import com.algo.opstra.model.OpstOptionData;
 import com.algo.paper.trade.utils.CommonUtils;
 import com.algo.paper.trade.utils.Constants;
 import com.algo.paper.trade.utils.DateUtils;
@@ -265,15 +265,9 @@ public class PaperUtils {
 	public void startAdjustment(MyPosition posToClose, MyPosition posToOpen) {
 		System.out.println("************* ADJUSTMENT STARTED *********************");
 		log.info("************* ADJUSTMENT STARTED *********************");
-		Integer qty = 0;
-		if(posToClose.getNetQuantity() < 0)
-			qty = 0;
-		boolean buyCompleted = buy(posToClose.getStrikePrice(), 
-				posToClose.getSymbol(), 
-				posToClose.getExpiry(),
-				qty, 
-				posToClose.getOptionType(),
-				posToClose.getCurrentPrice());
+		List<MyPosition> closePositions = new ArrayList<>();
+		closePositions.add(posToClose);
+		boolean buyCompleted = closeAllSellPositions(closePositions);
 
 		if(!buyCompleted)
 			return;
@@ -302,20 +296,22 @@ public class PaperUtils {
 	 * @param ceOrPe
 	 * @return
 	 */
-	public boolean buy(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price) {
+	public boolean buy(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price, boolean isClose) {
 		try {
 			System.out.println("************* NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
 			log.info("NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
-					ExcelUtils.prepareDataRow(symbol+expiry+strikePrice+ceOrPe,
-					qty, 
-					StringUtils.EMPTY, 
-					price, 
-					price, 
-					StringUtils.EMPTY, 
-					DateUtils.getDateTime(LocalDateTime.now()), price));
+					ExcelUtils.prepareDataRow(symbol+expiry+strikePrice+ceOrPe, // Position
+					isClose ? 0 : qty, // Wty
+					StringUtils.EMPTY, // Sell Price
+					price, // Buy Price
+					price, // Current Price
+					StringUtils.EMPTY, //P&L
+					StringUtils.EMPTY, //Ex Time
+					DateUtils.getDateTime(LocalDateTime.now()) // Close Time
+					));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
 			System.out.println("************* POSITION CLOSED ***************\n ORDER ID: ");
 			return true;
@@ -349,13 +345,15 @@ public class PaperUtils {
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
-					ExcelUtils.prepareDataRow(symbol+expiry+strikePrice+ceOrPe, 
-					qty, 
-					price, 
-					0, 
-					price, 
-					0, 
-					DateUtils.getDateTime(LocalDateTime.now())));
+					ExcelUtils.prepareDataRow(symbol+expiry+strikePrice+ceOrPe, // Position
+					qty, // Wty
+					price, // Sell Price
+					0, // Buy Price
+					price, // Current Price
+					0, //P&L
+					DateUtils.getDateTime(LocalDateTime.now()), //Ex Time
+					StringUtils.EMPTY // Close Time
+					));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
 			System.out.println("************* SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
 			log.info("SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
@@ -443,7 +441,7 @@ public class PaperUtils {
 		try {
 			for(MyPosition p: netPositions) {
 				if(p.getNetQuantity() < 0)
-					closed |= buy(p.getStrikePrice(), p.getSymbol(), p.getExpiry(), p.getSellQuantity(), p.getOptionType(), p.getCurrentPrice());
+					closed |= buy(p.getStrikePrice(), p.getSymbol(), p.getExpiry(), p.getSellQuantity(), p.getOptionType(), p.getCurrentPrice(), true);
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -562,15 +560,19 @@ public class PaperUtils {
 				continue;
 			}
 			//Position	Qty	Sell Price	Buy Price	Current Price	P&L	Net P&L
-			if(StringUtils.isBlank(row[0]))
+			if(StringUtils.isBlank(row[0])) {
+				i++;
 				continue;
+			}
 			MyPosition p = new MyPosition();
-			p.setTradingSymbol(row[0]);
-			p.setNetQuantity(Double.valueOf(row[1]).intValue());
-			p.setSellPrice(Double.valueOf(row[2]));
-			p.setBuyPrice(Double.valueOf(row[3]));
-			p.setCurrentPrice(Double.valueOf(row[4]));
-			p.setPositionPnl(Double.valueOf(row[5]));
+			p.setTradingSymbol(row[0]); // Col: Position
+			p.setNetQuantity(Double.valueOf(row[1]).intValue()); // Col: Qty
+			p.setSellPrice(Double.valueOf(row[2])); // Col: Sell Price
+			p.setBuyPrice(Double.valueOf(row[3])); // Col: Buy Price
+			p.setCurrentPrice(Double.valueOf(row[4])); // Col: Current Price
+			p.setPositionPnl(Double.valueOf(row[5])); // Col: P&L
+			p.setStartDate(StringUtils.isNotBlank(row[6]) ?  row[6] : null); // Col: Ex Time
+			p.setEndDate(StringUtils.isNotBlank(row[7]) ?  row[7] : null); // Col: Close Time
 			allPositions.add(p);
 		}
 		return allPositions;

@@ -34,7 +34,8 @@ import org.slf4j.LoggerFactory;
 public class ExcelUtils {
 	
 	static Logger log = LoggerFactory.getLogger(ExcelUtils.class);
-	private static final int SHEET_TRADES_ROW_START_NO = 3; // 2 is an index, actual row number is 3
+	private static final int SHEET_TRADES_ROW_START_NO = 2; // 2 is an index, actual row number is 3
+	private static final int SHEET_TRADES_COL_COUNT = 8; // 2 is an index, actual row number is 3
 	static String fileNamePrefix = "trades_";
 	static String ext = "xlsx";
 	
@@ -187,7 +188,7 @@ public class ExcelUtils {
             int rowCount = getLastRow(sheet);
             Row row = getRowBySymbol(sheet, (String)bookRow[0]);
             if(row == null) {
-            	row = sheet.createRow(rowCount+1);
+            	row = sheet.createRow(rowCount);
             }
             Cell cell;
             for(int i=0; i< bookRow.length; i++) {
@@ -383,10 +384,11 @@ public class ExcelUtils {
 			log.info("TOTAL ROWS FOUND "+noOfRows);
 			int noOfColumns = sheet.getRow(0).getLastCellNum();
 			log.info("Cell count iin first row: "+noOfColumns);
-			dataTable = new String[noOfRows][noOfColumns];
-			for (int i = SHEET_TRADES_ROW_START_NO; i < noOfRows; i++) {
+			dataTable = new String[noOfRows][SHEET_TRADES_COL_COUNT];
+			for (int i = SHEET_TRADES_ROW_START_NO+1; i < noOfRows; i++) {
 			    Row row = sheet.getRow(i);
 			    noOfColumns = row.getLastCellNum();
+			    //dataTable = new String[noOfRows][noOfColumns];
 			    log.info("COLUMNS IN ROW: "+i+": "+noOfColumns);
 			    for (int j = row.getFirstCellNum(); j < noOfColumns; j++) {
 			        Cell cell = row.getCell(j);

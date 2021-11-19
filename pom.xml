@@ -15,6 +15,7 @@
 	<name>paper-trade</name>
 	<description>Strangle Paper Trade Application</description>
 	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.8</java.version>
 	</properties>
 	<dependencies>
@@ -53,23 +54,9 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-collections4</artifactId>
-			<version>4.4</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi</artifactId>
-			<version>3.15</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml</artifactId>
-			<version>3.15</version>
+			<groupId>com.algo.utils</groupId>
+			<artifactId>algo-utils</artifactId>
+			<version>1.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
@@ -79,10 +66,6 @@
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
 			<version>20171018</version>
-		</dependency>
-		<dependency>
-		    <groupId>com.fasterxml.jackson.core</groupId>
-		    <artifactId>jackson-databind</artifactId>
 		</dependency>
 		<dependency>
 		    <groupId>com.googlecode.json-simple</groupId>

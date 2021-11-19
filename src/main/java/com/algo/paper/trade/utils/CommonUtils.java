@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.algo.paper.trade.model.MyPosition;
+import com.algo.model.MyPosition;
 
 public class CommonUtils {
 	
