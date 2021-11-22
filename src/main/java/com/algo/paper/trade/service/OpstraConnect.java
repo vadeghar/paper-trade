@@ -7,6 +7,8 @@ import java.util.Map;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -21,17 +23,25 @@ import com.algo.model.LTPQuote;
 import com.algo.opstra.model.OpstOptionChain;
 import com.algo.opstra.model.OpstOptionData;
 import com.algo.opstra.model.OpstraResponse;
+import com.algo.opstra.model.OpstraSpotResponse;
 import com.algo.utils.CommonUtils;
 import com.algo.utils.Constants;
+import com.algo.utils.ExcelUtils;
 
 @Service
 public class OpstraConnect {
-	
+	static Logger log = LoggerFactory.getLogger(ExcelUtils.class);
 	@Value("${app.opstra.api.optionPrice}")
 	private String optionPrice;
 	
 	@Value("${app.opstra.api.optionChain}")
 	private String optionChain;
+	
+	@Value("${app.opstra.api.spot}")
+	private String spot;
+	
+//	@Value("${app.opstra.api.cookieVal}")
+//	private String cookieVal;
 	
 	@Autowired
 	RestTemplate restTemplate;
@@ -53,6 +63,7 @@ public class OpstraConnect {
 	}
 	
 	//https://opstra.definedge.com/api/free/strategybuilder/optionprice/NIFTY&25NOV2021&17650&CE
+	//https://opstra.definedge.com/api/free/strategybuilder/optionprice/BANKNIFTY&25NOV2021&33000&CE
 	public Map<String, LTPQuote> getLTP(List<String> symbols) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36");
@@ -61,11 +72,13 @@ public class OpstraConnect {
 		headers.set("sec-ch-ua-platform", "\"Windows\"");
 		headers.set("sec-fetch-mode", "cors");
 		headers.set("sec-fetch-site", "same-origin");
+//		headers.set("cookie", cookieVal);
 		headers.set("referer", "https://opstra.definedge.com/strategy-builder");
 		HttpEntity entity = new HttpEntity(headers);
 		Map<String, LTPQuote> ltps = new HashMap<>();
 		for(String symbol : symbols) {
 			String url = optionPrice+CommonUtils.getOpstraSymbol(symbol)+"&"+CommonUtils.getOpstraExpiry(symbol)+"&"+CommonUtils.getOpstraStrikePrice(symbol)+"&"+CommonUtils.getOpstraOptionType(symbol);
+			log.info("URL: "+url);
 			ResponseEntity<OpstraResponse> response = restTemplate.exchange(url, HttpMethod.GET, entity, OpstraResponse.class);
 			if(response.getStatusCode() == HttpStatus.OK) {
 				OpstraResponse resp = response.getBody();
@@ -85,8 +98,8 @@ public class OpstraConnect {
 		Double peMinDelta = deltaVal - (2*deltaVal) - deltaMaxDiff; // 15 - 2*15 - 1 = -16
 		Double cDelta = 0.0;
 		Double pDelta = 0.0;
-		System.out.println("CE MAX: "+ceMaxDelta+" CE MIN:"+ceMinDelta);
-		System.out.println("PE MAX: "+peMaxDelta+" PE MIN:"+peMinDelta);
+		log.info("CE MAX: "+ceMaxDelta+" CE MIN:"+ceMinDelta);
+		log.info("PE MAX: "+peMaxDelta+" PE MIN:"+peMinDelta);
 		for(OpstOptionData data: chain.getData()) {
 			if(StringUtils.isNotBlank(data.getCallDelta()) && !data.getCallDelta().equals("-")) {
 				cDelta = Double.valueOf(data.getCallDelta());
@@ -103,15 +116,6 @@ public class OpstraConnect {
 		}
 		return response;
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	
 	private OpstOptionChain processResponse(OpstOptionChain body) {
@@ -139,6 +143,23 @@ public class OpstraConnect {
 		}
 		processedResponse.setData(data);
 		return processedResponse;
+	}
+
+	public OpstraSpotResponse getSpotResponse(String symbol, String expiry) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36");
+		headers.set("sec-ch-ua", "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"96\", \"Google Chrome\";v=\"96\"");
+		headers.set("sec-ch-ua-mobile", "?0");
+		headers.set("sec-ch-ua-platform", "\"Windows\"");
+		headers.set("sec-fetch-mode", "cors");
+		headers.set("sec-fetch-site", "same-origin");
+//		headers.set("cookie", cookieVal);
+		headers.set("referer", "https://opstra.definedge.com/strategy-builder");
+		HttpEntity entity = new HttpEntity(headers);
+		String url = spot+symbol+"&"+expiry;
+		log.info("URL: "+url);
+		ResponseEntity<OpstraSpotResponse> response = restTemplate.exchange(url, HttpMethod.GET, entity, OpstraSpotResponse.class);
+		return response.getBody();
 	}
 	
 	

@@ -102,7 +102,7 @@ public class PaperTradeServiceImpl {
 		if(Double.valueOf(String.format("%.2f", diffInPerc)) > adjustmentPerc) {
 			initAdjustmentAction(p1, p2);
 		}
-		paperUtils.printPositions();
+		paperUtils.printAllPositionsFromSheet();
 		paperUtils.updteTradeFile(false);
 		
 	}

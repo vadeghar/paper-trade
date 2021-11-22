@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
@@ -28,12 +30,10 @@ import com.algo.utils.ExcelUtils;
 @Service
 public class PaperUtils {
 	
-	private static final String SHEET_SL_VAL = "B2";
-	private static final String SHEET_TARGET_VAL = "B1";
 
 	Logger log = LoggerFactory.getLogger(this.getClass());
 
-	@Value("${app.paperTrade.dataDir}")
+	@Value("${app.strangle.dataDir}")
 	private String dataDir;
 	
 	@Value("${app.strangle.expiry}")
@@ -50,6 +50,13 @@ public class PaperUtils {
 	
 	@Autowired
 	OpstraConnect opstraConnect;
+	
+	@PostConstruct  
+    public void postConstruct() {  
+       expiry = DateUtils.opstraFormattedExpiry(expiry);
+       System.out.println("Strangle expiry: "+expiry);  
+    }  
+
 	
 	/**
 	 * Gives the current positions which are not closed yet
@@ -147,7 +154,7 @@ public class PaperUtils {
 	/**
 	 * Print net positions on console
 	 */
-	public void printPositions() {
+	public void printAllPositionsFromSheet() {
 		CommonUtils.printAllPositionsFromSheet(dataDir);
 	}
 	
@@ -280,7 +287,7 @@ public class PaperUtils {
 	
 	public boolean checkTargetAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll =false;
-		String target = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_TARGET_VAL);
+		String target = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_TARGET_VAL);
 		System.out.println("\t\t\tTARGET: "+target);
 		if(StringUtils.isNotBlank(target)) {
 			Double taregtDbl = Double.valueOf(target);
@@ -296,7 +303,7 @@ public class PaperUtils {
 	
 	public boolean checkSLAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll = false;
-		String stopLoss = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_SL_VAL);
+		String stopLoss = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_SL_VAL);
 		if(StringUtils.isBlank(stopLoss) || Double.valueOf(stopLoss) == 0.0) {
 			System.out.println("\t\t\tSTOP LOSS: (NO STOP LOSS ADDED YET)");
 			return isClosedAll;
@@ -316,9 +323,9 @@ public class PaperUtils {
 	
 	
 	public void placeStrangleStrategy() {
-		String opstExpiry = DateUtils.opstraFormattedExpiry(expiry);
+//		String opstExpiry = DateUtils.opstraFormattedExpiry(expiry);
 		Double nearDelta = 3.0;
-		Map<String, OpstOptionData> strikes = opstraConnect.getOpstStrangleStrikes(opstSymbol, opstExpiry, deltaVal, nearDelta);
+		Map<String, OpstOptionData> strikes = opstraConnect.getOpstStrangleStrikes(opstSymbol, expiry, deltaVal, nearDelta);
 		if(strikes == null || CollectionUtils.isEmpty(strikes.keySet()))
 			throw new RuntimeException("Strike prices not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.CE) == null)
@@ -332,14 +339,17 @@ public class PaperUtils {
 		System.out.println("ceOption: "+ceOption);
 		System.out.println("*******************************************************************************************");
 		boolean peSell = false;
-		boolean ceSell = sell(ceOption.getStrikePrice(), opstSymbol, opstExpiry, qty * -1, Constants.CE, Double.valueOf(ceOption.getCallLTP()));
+		boolean ceSell = sell(ceOption.getStrikePrice(), opstSymbol, expiry, qty * -1, Constants.CE, Double.valueOf(ceOption.getCallLTP()));
 		if(ceSell) {
-			peSell = sell(peOption.getStrikePrice(), opstSymbol, opstExpiry, qty * -1, Constants.PE, Double.valueOf(peOption.getPutLTP()));
+			peSell = sell(peOption.getStrikePrice(), opstSymbol, expiry, qty * -1, Constants.PE, Double.valueOf(peOption.getPutLTP()));
 		}
 		if(peSell) {
 			Double totalPremReceived = (Double.valueOf(ceOption.getCallLTP()) + Double.valueOf(peOption.getPutLTP())) * qty;
 			Double totalTarget = (totalPremReceived * 80) / 100;
-			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), SHEET_TARGET_VAL, Constants.DECIMAL_FORMAT.format(totalTarget));
+			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_TARGET_VAL, Constants.DECIMAL_FORMAT.format(totalTarget));
+			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_STRATEGY_NAME_VAL, "STRANGLE");
+			ExcelUtils.setValueWithRedBgByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_CE_SL_VAL, StringUtils.EMPTY);
+			ExcelUtils.setValueWithRedBgByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_PE_SL_VAL, StringUtils.EMPTY);
 		}
 		System.out.println("*******************************************************************************************\n\n");
 	}
