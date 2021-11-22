@@ -28,7 +28,7 @@ import com.algo.utils.DateUtils;
 import com.algo.utils.ExcelUtils;
 
 @Service
-public class PaperUtils {
+public class StrangleServiceImpl {
 	
 
 	Logger log = LoggerFactory.getLogger(this.getClass());
@@ -101,7 +101,7 @@ public class PaperUtils {
 		MyPosition posToOpen = new MyPosition();
 		try {
 			Double newSellPremium = (otherOptPrem * 85) / 100;
-			System.out.println("\t\t\tFINDING CALL OPTION AT PRICE: "+newSellPremium);
+			System.out.println("\t\t\t(STRANGLE) FINDING CALL OPTION AT PRICE: "+newSellPremium);
 			List<String> nearestTenSymbols = getNearestTenKiteSymbols(posToClose);
 			Map<String, LTPQuote> ltps = opstraConnect.getLTP(nearestTenSymbols);
 			String tradeSymbol = null;
@@ -178,8 +178,8 @@ public class PaperUtils {
 	 * @param posToOpen
 	 */
 	public void startAdjustment(MyPosition posToClose, MyPosition posToOpen) {
-		System.out.println("************* ADJUSTMENT STARTED *********************");
-		log.info("************* ADJUSTMENT STARTED *********************");
+		System.out.println("************* (STRANGLE) ADJUSTMENT STARTED *********************");
+		log.info("************* (STRANGLE) ADJUSTMENT STARTED *********************");
 		List<MyPosition> closePositions = new ArrayList<>();
 		closePositions.add(posToClose);
 		boolean buyCompleted = closeAllSellPositions(closePositions);
@@ -193,8 +193,8 @@ public class PaperUtils {
 				posToOpen.getOptionType(),
 				posToOpen.getCurrentPrice());
 		if(sellCompleted) {
-			System.out.println("************* ADJUSTMENT COMPLETED *********************");
-			log.info("************* ADJUSTMENT COMPLETED *********************");
+			System.out.println("************* (STRANGLE) ADJUSTMENT COMPLETED *********************");
+			log.info("************* (STRANGLE) ADJUSTMENT COMPLETED *********************");
 		}
 	}
 
@@ -213,8 +213,8 @@ public class PaperUtils {
 	 */
 	public boolean buy(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price, boolean isClose) {
 		try {
-			System.out.println("************* NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
-			log.info("NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
+			System.out.println("************* (STRANGLE) NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
+			log.info("(STRANGLE) NEW BUY POSITION TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
@@ -228,14 +228,14 @@ public class PaperUtils {
 					DateUtils.getDateTime(LocalDateTime.now()) // Close Time
 					));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
-			System.out.println("************* POSITION CLOSED ***************\n ORDER ID: ");
+			System.out.println("************* (STRANGLE) POSITION CLOSED ***************\n ORDER ID: ");
 			return true;
 		} catch (JSONException e) {
 			e.printStackTrace();
-			System.out.println("******************* "+e.getLocalizedMessage()+" ******************************");
-			System.out.println("*************  PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			System.out.println("******************* (STRANGLE) "+e.getLocalizedMessage()+" ******************************");
+			System.out.println("*************  (STRANGLE) PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			log.error(e.getLocalizedMessage());
-			log.error("PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			log.error("(STRANGLE) PROBLEM WHILE PLACING A NEW BUY ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			CommonUtils.beep();
 		}
 		return false;
@@ -255,8 +255,8 @@ public class PaperUtils {
 	 */
 	public boolean sell(String strikePrice, String symbol, String expiry, Integer qty, String ceOrPe, double price) {
 		try {
-			System.out.println("************* SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
-			log.info("SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
+			System.out.println("************* (STRANGLE) SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" ***************\n");
+			log.info("(STRANGLE) SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe));
 			String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 			List<Object[]> netPositionRows = new ArrayList<>();
 			netPositionRows.add(
@@ -270,15 +270,15 @@ public class PaperUtils {
 					StringUtils.EMPTY // Close Time
 					));
 			ExcelUtils.addOrUpdateRows(fileToUpdate, netPositionRows);
-			System.out.println("************* SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
-			log.info("SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
+			System.out.println("************* (STRANGLE) SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
+			log.info("(STRANGLE) SELL ORDER FOR TRADING SYMBOL: "+(symbol+expiry+strikePrice+ceOrPe)+" IS COMPLETED ");
 			return true;
 		} catch (JSONException e) {
 			e.printStackTrace();
-			System.out.println("******************* "+e.getLocalizedMessage()+" ******************************");
-			System.out.println("************* PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			System.out.println("******************* (STRANGLE) "+e.getLocalizedMessage()+" ******************************");
+			System.out.println("************* (STRANGLE) PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			log.error(e.getLocalizedMessage());
-			log.error("PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
+			log.error("(STRANGLE) PROBLEM WHILE PLACING A NEW SELL ORDER - DO IT MANUALLY : "+symbol+expiry+strikePrice+ceOrPe);
 			CommonUtils.beep();
 		}
 		return false;
@@ -288,13 +288,13 @@ public class PaperUtils {
 	public boolean checkTargetAndClosePositions(List<MyPosition> netPositions) {
 		boolean isClosedAll =false;
 		String target = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_TARGET_VAL);
-		System.out.println("\t\t\tTARGET: "+target);
+		System.out.println("\t\t\t(STRANGLE) TARGET: "+target);
 		if(StringUtils.isNotBlank(target)) {
 			Double taregtDbl = Double.valueOf(target);
 			Double netPnl = CommonUtils.getNetPnl(CommonUtils.getAllPaperPositions(dataDir));
-			System.out.println("\t\t\tCurrent P/L: "+Constants.DECIMAL_FORMAT.format(netPnl)+" OF "+target);
+			System.out.println("\t\t\t(STRANGLE) Current P/L: "+Constants.DECIMAL_FORMAT.format(netPnl)+" OF "+target);
 			if(netPnl >= taregtDbl) {
-				System.err.println("***** TARGET ACHIVED: TARGET:"+target+" NET P/L:"+netPnl);
+				System.err.println("***** (STRANGLE) TARGET ACHIVED: TARGET:"+target+" NET P/L:"+netPnl);
 				isClosedAll = closeAllSellPositions(netPositions);
 			}
 		}
@@ -305,16 +305,16 @@ public class PaperUtils {
 		boolean isClosedAll = false;
 		String stopLoss = ExcelUtils.getValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_SL_VAL);
 		if(StringUtils.isBlank(stopLoss) || Double.valueOf(stopLoss) == 0.0) {
-			System.out.println("\t\t\tSTOP LOSS: (NO STOP LOSS ADDED YET)");
+			System.out.println("\t\t\t(STRANGLE) STOP LOSS: (NO STOP LOSS ADDED YET)");
 			return isClosedAll;
 		}
 		if(StringUtils.isNotBlank(stopLoss)) {
 			Double stopLossPremium = Double.valueOf(stopLoss);
 			Double netPremiumHave = CommonUtils.getNetPremiumCollected(netPositions);
-			System.out.println("\t\t\tSTOP LOSS: "+stopLoss+" / "+ Constants.DECIMAL_FORMAT.format(netPremiumHave));
+			System.out.println("\t\t\t(STRANGLE) STOP LOSS: "+stopLoss+" / "+ Constants.DECIMAL_FORMAT.format(netPremiumHave));
 			if(netPremiumHave  >= stopLossPremium) {
-				System.err.println("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
-				log.info("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
+				System.err.println("(STRANGLE) STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
+				log.info("(STRANGLE) STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
 				isClosedAll = closeAllSellPositions(netPositions);
 			}
 		}
@@ -327,16 +327,16 @@ public class PaperUtils {
 		Double nearDelta = 3.0;
 		Map<String, OpstOptionData> strikes = opstraConnect.getOpstStrangleStrikes(opstSymbol, expiry, deltaVal, nearDelta);
 		if(strikes == null || CollectionUtils.isEmpty(strikes.keySet()))
-			throw new RuntimeException("Strike prices not Found near "+deltaVal+" +/- "+nearDelta+" delta");
+			throw new RuntimeException("(STRANGLE) Strike prices not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.CE) == null)
-			throw new RuntimeException("Strike price CALL not Found near "+deltaVal+" +/- "+nearDelta+" delta");
+			throw new RuntimeException("(STRANGLE) Strike price CALL not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.PE) == null)
-			throw new RuntimeException("Strike price PUT not Found near "+deltaVal+" +/- "+nearDelta+" delta");
+			throw new RuntimeException("(STRANGLE) Strike price PUT not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		ExcelUtils.createExcelFile(dataDir);
 		OpstOptionData peOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.PE)).findFirst().get());
-		System.out.println("peOption: "+peOption);
+		System.out.println("(STRANGLE) peOption: "+peOption);
 		OpstOptionData ceOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.CE)).findFirst().get());
-		System.out.println("ceOption: "+ceOption);
+		System.out.println("(STRANGLE) ceOption: "+ceOption);
 		System.out.println("*******************************************************************************************");
 		boolean peSell = false;
 		boolean ceSell = sell(ceOption.getStrikePrice(), opstSymbol, expiry, qty * -1, Constants.CE, Double.valueOf(ceOption.getCallLTP()));
@@ -437,7 +437,7 @@ public class PaperUtils {
 				tradingSymbols.add(symbol.toUpperCase()+expiry.toUpperCase()+curStrikePrice+Constants.PE);
 			}
 		}
-		System.out.println("\t\t\tGETTING LTP FOR SYMBOLS: "+tradingSymbols);
+		System.out.println("\t\t\t(STRANGLE) GETTING LTP FOR SYMBOLS: "+tradingSymbols);
 		return tradingSymbols;
 	}
 
