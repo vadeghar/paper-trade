@@ -36,16 +36,16 @@ public class PaperUtils {
 	@Value("${app.paperTrade.dataDir}")
 	private String dataDir;
 	
-	@Value("${app.straddle.expiry}")
+	@Value("${app.strangle.expiry}")
 	private String expiry;
 	
-	@Value("${app.straddle.opstSymbol}")
+	@Value("${app.strangle.opstSymbol}")
 	private String opstSymbol;
 	
-	@Value("${app.straddle.deltaVal}")
+	@Value("${app.strangle.deltaVal}")
 	private Double deltaVal;
 	
-	@Value("${app.straddle.qty:50}")
+	@Value("${app.strangle.qty:50}")
 	private Integer qty;
 	
 	@Autowired
@@ -97,15 +97,12 @@ public class PaperUtils {
 			System.out.println("\t\t\tFINDING CALL OPTION AT PRICE: "+newSellPremium);
 			List<String> nearestTenSymbols = getNearestTenKiteSymbols(posToClose);
 			Map<String, LTPQuote> ltps = opstraConnect.getLTP(nearestTenSymbols);
-			String tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 1);
-			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 2);
-			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 3);
-			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 4);
-			if(StringUtils.isBlank(tradeSymbol))
-				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, 5);
+			String tradeSymbol = null;
+			for(int i =1; i<=6; i++) {
+				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, i);
+				if(StringUtils.isNotBlank(tradeSymbol))
+					break;
+			}
 			if(tradeSymbol == null)
 				return null;
 			posToOpen.setTradingSymbol(tradeSymbol);
@@ -304,10 +301,10 @@ public class PaperUtils {
 			System.out.println("\t\t\tSTOP LOSS: (NO STOP LOSS ADDED YET)");
 			return isClosedAll;
 		}
-		System.out.println("\t\t\tSTOP LOSS: "+stopLoss);
 		if(StringUtils.isNotBlank(stopLoss)) {
 			Double stopLossPremium = Double.valueOf(stopLoss);
 			Double netPremiumHave = CommonUtils.getNetPremiumCollected(netPositions);
+			System.out.println("\t\t\tSTOP LOSS: "+stopLoss+" / "+ Constants.DECIMAL_FORMAT.format(netPremiumHave));
 			if(netPremiumHave  >= stopLossPremium) {
 				System.err.println("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);
 				log.info("STOP LOSS HIT: "+stopLossPremium+" NET PRICE OF EXISTING POSITIONS: "+netPremiumHave);

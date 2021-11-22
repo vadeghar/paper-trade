@@ -25,16 +25,16 @@ public class PaperTradeServiceImpl {
 	
 	Logger log = LoggerFactory.getLogger(this.getClass());
 	
-	@Value("${app.straddle.adjustmentPerc:50}")
+	@Value("${app.strangle.adjustmentPerc:50}")
 	private Integer adjustmentPerc;
 	
-	@Value("${app.straddle.closeOnTarget:false}")
+	@Value("${app.strangle.closeOnTarget:false}")
 	private boolean closeOnTarget;
 	
-	@Value("${app.straddle.useStopLoss:false}")
+	@Value("${app.strangle.useStopLoss:false}")
 	private boolean useStopLoss;
 	
-	@Value("${app.straddle.adjustAtEnd:false}")
+	@Value("${app.strangle.adjustAtEnd:false}")
 	private boolean adjustAtEnd;
 	
 	LocalTime closeTime = LocalTime.parse(Constants.CLOSEING_TIME);
@@ -54,7 +54,7 @@ public class PaperTradeServiceImpl {
 		paperUtils.placeStrangleStrategy();
 	}
 	
-	@Scheduled(cron = "0/10 * * * * ?")
+	@Scheduled(cron = "0/30 * * * * ?")
 	public void monitorPaperStrangleAndDoAdjustments() throws JSONException, IOException {
 //		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
 //			System.out.println("\n\n\n\nMARKET CLOSED");
