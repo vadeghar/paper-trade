@@ -41,6 +41,7 @@ public class PaperTradeIntradayStrangle {
 		AlogLtpData ltpData = response.get(opstSymbol);
 		Integer atmStrike = getATMStrikePrice(ltpData);
 		List<String> symbols2 = prepareSymbols(opstSymbol, atmStrike, days, currentExpiry);
+		System.out.println("LTP OF "+symbols2);
 		Map<String, AlogLtpData> optionsToSell =  grConnect.getLtpData(symbols2);
 		System.out.println(optionsToSell);
 		
@@ -58,8 +59,8 @@ public class PaperTradeIntradayStrangle {
 			op1 = opstSymbol+DateUtils.opstraFormattedExpiry(expiry)+(atmStrike - (days+1) * 50)+Constants.PE;
 			op2 = opstSymbol+DateUtils.opstraFormattedExpiry(expiry)+(atmStrike + (days+1) * 50)+Constants.CE;
 		}
-		symbols.add(op1.replace(CommonUtils.getOpstraExpiry(op1), CommonUtils.getSpecialExpiry(op1, true)));
-		symbols.add(op2.replace(CommonUtils.getOpstraExpiry(op2), CommonUtils.getSpecialExpiry(op2, true)));
+		symbols.add(op1.replace(CommonUtils.getOpstraExpiry(op1), CommonUtils.getSpecialExpiry(op1, DateUtils.isMonthlyExpiry(expiry))));
+		symbols.add(op2.replace(CommonUtils.getOpstraExpiry(op2), CommonUtils.getSpecialExpiry(op2, DateUtils.isMonthlyExpiry(expiry))));
 		return symbols;
 	}
 
