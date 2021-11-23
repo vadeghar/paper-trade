@@ -1,5 +1,6 @@
 package com.algo.paper.trade.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,9 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.algo.model.LTPQuote;
+import com.algo.model.AlogLtpData;
 import com.algo.model.MyPosition;
-import com.algo.opstra.model.OpstraSpotResponse;
+import com.algo.paper.trade.connect.OpstraConnect;
 import com.algo.utils.CommonUtils;
 import com.algo.utils.Constants;
 import com.algo.utils.DateUtils;
@@ -34,8 +35,8 @@ public class StraddleServiceImpl {
 
 	@Value("${app.straddle.opstSymbol}")
 	private String opstSymbol;
-	@Value("${app.straddle.expiry}")
-	private String expiry;
+//	@Value("${app.straddle.expiry}")
+//	private String expiry;
 	@Value("${app.straddle.dataDir}")
 	private String dataDir;
 	@Value("${app.straddle.qty:50}")
@@ -49,43 +50,45 @@ public class StraddleServiceImpl {
 
 	@PostConstruct  
 	public void postConstruct() {  
-		expiry = DateUtils.opstraFormattedExpiry(expiry);
-		System.out.println("Straddle expiry: "+expiry);  
+//		expiry = DateUtils.opstraFormattedExpiry(expiry);
+//		System.out.println("Straddle expiry: "+expiry);  
 	}  
 
 
 	public void placeStraddleStrategy() {
-
-		OpstraSpotResponse response =  opstraConnect.getSpotResponse(opstSymbol, expiry);
-		Integer strikePrice = getATMStrikePrice(response);
-		List<Integer> availableStrikes = response.getStrikes();
-		if(!availableStrikes.contains(strikePrice)) {
-			log.info("Found invalid strike price");
-			System.out.println("INVALID STRIKE");
-		}
-		log.info("(STRADDLE) Current Price: "+response.getSpotPrice()+" Strike: "+strikePrice);
-		ExcelUtils.createExcelFile(dataDir);
-		System.out.println("Current Price: "+response.getSpotPrice()+" Strike: "+strikePrice);
+		LocalDate currentExpiryDate = DateUtils.getCurrentExpiry();
+		String expiry = DateUtils.opstraFormattedExpiry(currentExpiryDate);
 		List<String> symbols = new ArrayList<>();
+		symbols.add(opstSymbol);
+		Map<String, AlogLtpData> response =  opstraConnect.getSpotLtpData(symbols, expiry);
+		AlogLtpData ltpData = response.get(opstSymbol);
+		Integer strikePrice = getATMStrikePrice(ltpData);
+//		List<Integer> availableStrikes = response.getStrikes();
+//		if(!availableStrikes.contains(strikePrice)) {
+//			log.info("Found invalid strike price");
+//			System.out.println("INVALID STRIKE");
+//		}
+		log.info("(STRADDLE) Current Price: "+ltpData.getLastPrice()+" Strike: "+strikePrice);
+		ExcelUtils.createExcelFile(dataDir);
+		System.out.println("Current Price: "+ltpData.getLastPrice()+" Strike: "+strikePrice);
+		symbols = new ArrayList<>();
 		String ceTrSymbol = opstSymbol.toUpperCase()+expiry.toUpperCase()+strikePrice+Constants.CE;
 		String peTrSymbol = opstSymbol.toUpperCase()+expiry.toUpperCase()+strikePrice+Constants.PE;
 		symbols.add(ceTrSymbol);
 		symbols.add(peTrSymbol);
 		//symbol.toUpperCase()+expiry.toUpperCase()+curStrikePrice+Constants.CE
-		Map<String, LTPQuote> ltps = opstraConnect.getLTP(symbols);
-		Double cePremRcvd = ltps.get(ceTrSymbol).lastPrice;
-		Double pePremRcvd = ltps.get(peTrSymbol).lastPrice;
+		Map<String, AlogLtpData> ltps = opstraConnect.getLtpData(symbols);
+		Double cePremRcvd = ltps.get(ceTrSymbol).getLastPrice();
+		Double pePremRcvd = ltps.get(peTrSymbol).getLastPrice();
 		Double netPremRcvd = cePremRcvd  + pePremRcvd;
-		boolean ceSell = sell(strikePrice.toString(), opstSymbol, expiry, qty * -1, Constants.CE, ltps.get(ceTrSymbol).lastPrice);
+		boolean ceSell = sell(strikePrice.toString(), opstSymbol, expiry, qty * -1, Constants.CE, ltps.get(ceTrSymbol).getLastPrice());
 		boolean peSell = false;
 		if(ceSell)
-			peSell = sell(strikePrice.toString(), opstSymbol, expiry, qty * -1, Constants.PE, ltps.get(peTrSymbol).lastPrice);
+			peSell = sell(strikePrice.toString(), opstSymbol, expiry, qty * -1, Constants.PE, ltps.get(peTrSymbol).getLastPrice());
 		if(peSell) {
 			Double totalTarget = qty * ((netPremRcvd * 10) / 100);
-			Double ceSL = cePremRcvd + (ltps.get(ceTrSymbol).lastPrice * stopLoss /100);
-			Double peSL = pePremRcvd + (ltps.get(peTrSymbol).lastPrice * stopLoss /100);
-
-
+			Double ceSL = cePremRcvd + (ltps.get(ceTrSymbol).getLastPrice() * stopLoss /100);
+			Double peSL = pePremRcvd + (ltps.get(peTrSymbol).getLastPrice() * stopLoss /100);
 			ExcelUtils.setValueWithRedBgByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_SL_VAL, StringUtils.EMPTY);
 			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_STRATEGY_NAME_VAL, "STRADDLE");
 			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_TARGET_VAL, totalTarget);
@@ -200,17 +203,17 @@ public class StraddleServiceImpl {
 	 */
 	private void setPaperCurrentPrices(List<MyPosition> myNetPositions) {
 		List<String> symbols = new ArrayList<>();
-		Map<String, LTPQuote> ltps = new HashMap<>();
+		Map<String, AlogLtpData> ltps = new HashMap<>();
 		try {
 			for(MyPosition p: myNetPositions) {
 				symbols.add(p.getTradingSymbol());
 			}
-			ltps = opstraConnect.getLTP(symbols);
+			ltps = opstraConnect.getLtpData(symbols);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		for(MyPosition p: myNetPositions) {
-			p.setCurrentPrice(ltps.get(p.getTradingSymbol()) !=null ? ltps.get(p.getTradingSymbol()).lastPrice : null);
+			p.setCurrentPrice(ltps.get(p.getTradingSymbol()) !=null ? ltps.get(p.getTradingSymbol()).getLastPrice() : null);
 			CommonUtils.getPositionPnl(p);
 		}
 
@@ -348,7 +351,7 @@ public class StraddleServiceImpl {
 		return false;
 	}
 
-	private boolean closeAllSellPositions(List<MyPosition> netPositions) {
+	public boolean closeAllSellPositions(List<MyPosition> netPositions) {
 		boolean closed = false;
 		try {
 			for(MyPosition p: netPositions) {
@@ -383,12 +386,12 @@ public class StraddleServiceImpl {
 	private void updateLatestPricesInFile() {
 		List<MyPosition> netPositions = CommonUtils.getAllPaperPositions(dataDir);
 		List<String> tradingSymbols = ExcelUtils.getAllSymbols(ExcelUtils.getCurrentFileNameWithPath(dataDir));
-		Map<String, LTPQuote> ltps = opstraConnect.getLTP(tradingSymbols);
+		Map<String, AlogLtpData> ltps = opstraConnect.getLtpData(tradingSymbols);
 		List<Object[]> netPositionRows = new ArrayList<>();
 		String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 		double netPnl = 0.0;
 		for(MyPosition position : netPositions) {
-			double lastPrice = ltps.get(position.getTradingSymbol()).lastPrice;
+			double lastPrice = ltps.get(position.getTradingSymbol()).getLastPrice();
 			double pnl = 0.0;
 			if(position.getNetQuantity() == 0) {
 				pnl = position.getPositionPnl();
@@ -418,24 +421,24 @@ public class StraddleServiceImpl {
 	}
 
 
-	private Integer getATMStrikePrice(OpstraSpotResponse response) {
+	private Integer getATMStrikePrice(AlogLtpData response) {
 		Integer strikePrice = 0;
-		int l = String.valueOf(response.getSpotPrice()).length();
+		int l = String.valueOf(response.getLastPrice()).length();
 		String d = "1";
 		for(int i=0; i<l; i++) {
 			d = d+"0";
 		}
 		if(opstSymbol.equals("BANKNIFTY"))
-			strikePrice = closestNumber(response.getSpotPrice().intValue(), 100);
+			strikePrice = closestNumber(response.getLastPrice(), 100);
 		if(opstSymbol.equals("NIFTY"))
-			strikePrice = closestNumber(response.getSpotPrice().intValue(), 50);
+			strikePrice = closestNumber(response.getLastPrice(), 50);
 		return strikePrice;
 	}
 
 
 
-	private int closestNumber(int n, int m) {
-		int q = n / m;
+	private int closestNumber(double n, int m) {
+		int q = Double.valueOf(n).intValue() / m;
 		int n1 = m * q;
 		int n2 = (n * m) > 0 ? (m * (q + 1)) : (m * (q - 1));
 		if (Math.abs(n - n1) < Math.abs(n - n2))

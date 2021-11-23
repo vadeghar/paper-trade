@@ -19,9 +19,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.algo.model.LTPQuote;
+import com.algo.model.AlgoOptionChain;
+import com.algo.model.AlogLtpData;
 import com.algo.model.MyPosition;
-import com.algo.opstra.model.OpstOptionData;
+import com.algo.paper.trade.connect.OpstraConnect;
 import com.algo.utils.CommonUtils;
 import com.algo.utils.Constants;
 import com.algo.utils.DateUtils;
@@ -103,7 +104,7 @@ public class StrangleServiceImpl {
 			Double newSellPremium = (otherOptPrem * 85) / 100;
 			System.out.println("\t\t\t(STRANGLE) FINDING CALL OPTION AT PRICE: "+newSellPremium);
 			List<String> nearestTenSymbols = getNearestTenKiteSymbols(posToClose);
-			Map<String, LTPQuote> ltps = opstraConnect.getLTP(nearestTenSymbols);
+			Map<String, AlogLtpData> ltps = opstraConnect.getLtpData(nearestTenSymbols);
 			String tradeSymbol = null;
 			for(int i =1; i<=6; i++) {
 				tradeSymbol = CommonUtils.getNearestTradingSymbolAtNPrice(newSellPremium, ltps, i);
@@ -115,7 +116,7 @@ public class StrangleServiceImpl {
 			posToOpen.setTradingSymbol(tradeSymbol);
 			posToOpen.setExpiry(posToClose.getExpiry());
 			posToOpen.setOptionType(posToClose.getOptionType());
-			posToOpen.setCurrentPrice(ltps.get(tradeSymbol).lastPrice);
+			posToOpen.setCurrentPrice(ltps.get(tradeSymbol).getLastPrice());
 			posToOpen.setStrikePrice(CommonUtils.getOpstraStrikePrice(posToOpen.getTradingSymbol()));
 			posToOpen.setSymbol(CommonUtils.getOpstraSymbol(posToOpen.getTradingSymbol()));
 			posToOpen.setSellQuantity(posToClose.getSellQuantity()); // Same quantity
@@ -135,17 +136,17 @@ public class StrangleServiceImpl {
 	 */
 	private void setPaperCurrentPrices(List<MyPosition> myNetPositions) {
 		List<String> symbols = new ArrayList<>();
-		Map<String, LTPQuote> ltps = new HashMap<>();
+		Map<String, AlogLtpData> ltps = new HashMap<>();
 		try {
 			for(MyPosition p: myNetPositions) {
 				symbols.add(p.getTradingSymbol());
 			}
-			ltps = opstraConnect.getLTP(symbols);
+			ltps = opstraConnect.getLtpData(symbols);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		for(MyPosition p: myNetPositions) {
-			p.setCurrentPrice(ltps.get(p.getTradingSymbol()) !=null ? ltps.get(p.getTradingSymbol()).lastPrice : null);
+			p.setCurrentPrice(ltps.get(p.getTradingSymbol()) !=null ? ltps.get(p.getTradingSymbol()).getLastPrice() : null);
 			CommonUtils.getPositionPnl(p);
 		}
 
@@ -325,7 +326,7 @@ public class StrangleServiceImpl {
 	public void placeStrangleStrategy() {
 //		String opstExpiry = DateUtils.opstraFormattedExpiry(expiry);
 		Double nearDelta = 3.0;
-		Map<String, OpstOptionData> strikes = opstraConnect.getOpstStrangleStrikes(opstSymbol, expiry, deltaVal, nearDelta);
+		Map<String, AlgoOptionChain> strikes = opstraConnect.getOpstStrangleStrikes(opstSymbol, expiry, deltaVal, nearDelta);
 		if(strikes == null || CollectionUtils.isEmpty(strikes.keySet()))
 			throw new RuntimeException("(STRANGLE) Strike prices not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		if(strikes.get(Constants.CE) == null)
@@ -333,18 +334,18 @@ public class StrangleServiceImpl {
 		if(strikes.get(Constants.PE) == null)
 			throw new RuntimeException("(STRANGLE) Strike price PUT not Found near "+deltaVal+" +/- "+nearDelta+" delta");
 		ExcelUtils.createExcelFile(dataDir);
-		OpstOptionData peOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.PE)).findFirst().get());
+		AlgoOptionChain peOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.PE)).findFirst().get());
 		System.out.println("(STRANGLE) peOption: "+peOption);
-		OpstOptionData ceOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.CE)).findFirst().get());
+		AlgoOptionChain ceOption = strikes.get(strikes.keySet().stream().filter(s -> s.equals(Constants.CE)).findFirst().get());
 		System.out.println("(STRANGLE) ceOption: "+ceOption);
 		System.out.println("*******************************************************************************************");
 		boolean peSell = false;
-		boolean ceSell = sell(ceOption.getStrikePrice(), opstSymbol, expiry, qty * -1, Constants.CE, Double.valueOf(ceOption.getCallLTP()));
+		boolean ceSell = sell(ceOption.getStrikePrice().toString(), opstSymbol, expiry, qty * -1, Constants.CE, Double.valueOf(ceOption.getCallOption().getLtp()));
 		if(ceSell) {
-			peSell = sell(peOption.getStrikePrice(), opstSymbol, expiry, qty * -1, Constants.PE, Double.valueOf(peOption.getPutLTP()));
+			peSell = sell(peOption.getStrikePrice().toString(), opstSymbol, expiry, qty * -1, Constants.PE, Double.valueOf(peOption.getPutOption().getLtp()));
 		}
 		if(peSell) {
-			Double totalPremReceived = (Double.valueOf(ceOption.getCallLTP()) + Double.valueOf(peOption.getPutLTP())) * qty;
+			Double totalPremReceived = (Double.valueOf(ceOption.getCallOption().getLtp()) + Double.valueOf(peOption.getPutOption().getLtp())) * qty;
 			Double totalTarget = (totalPremReceived * 80) / 100;
 			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_TARGET_VAL, Constants.DECIMAL_FORMAT.format(totalTarget));
 			ExcelUtils.setValueByCellReference(ExcelUtils.getCurrentFileNameWithPath(dataDir), ExcelUtils.SHEET_STRATEGY_NAME_VAL, "STRANGLE");
@@ -383,12 +384,12 @@ public class StrangleServiceImpl {
 	private void updateLatestPricesInFile() {
 		List<MyPosition> netPositions = CommonUtils.getAllPaperPositions(dataDir);
 		List<String> tradingSymbols = ExcelUtils.getAllSymbols(ExcelUtils.getCurrentFileNameWithPath(dataDir));
-		Map<String, LTPQuote> ltps = opstraConnect.getLTP(tradingSymbols);
+		Map<String, AlogLtpData> ltps = opstraConnect.getLtpData(tradingSymbols);
 		List<Object[]> netPositionRows = new ArrayList<>();
 		String fileToUpdate = ExcelUtils.getCurrentFileNameWithPath(dataDir);
 		double netPnl = 0.0;
 		for(MyPosition position : netPositions) {
-			double lastPrice = ltps.get(position.getTradingSymbol()).lastPrice;
+			double lastPrice = ltps.get(position.getTradingSymbol()).getLastPrice();
 			double pnl = 0.0;
 			if(position.getNetQuantity() == 0) {
 				pnl = position.getPositionPnl();

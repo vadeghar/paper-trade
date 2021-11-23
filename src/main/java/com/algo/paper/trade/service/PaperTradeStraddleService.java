@@ -1,5 +1,7 @@
 package com.algo.paper.trade.service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -24,6 +26,8 @@ public class PaperTradeStraddleService {
 	Logger log = LoggerFactory.getLogger(this.getClass());
 	LocalTime closeTime = LocalTime.parse(Constants.CLOSEING_TIME);
 	LocalTime openingTime = LocalTime.parse(Constants.OPENING_TIME);
+	LocalTime tradeStartTime = LocalTime.parse(Constants.INTRADAY_STRADDLE_START);
+	LocalTime tradeEndTime = LocalTime.parse(Constants.INTRADAY_STRADDLE_END);
 
 	@Value("${app.straddle.closeOnTarget:false}")
 	private boolean closeOnTarget;
@@ -49,15 +53,37 @@ public class PaperTradeStraddleService {
 //			straddleService.printAllPositionsFromSheet();
 //			return;
 //		}
+		DayOfWeek dayOfWeek = LocalDate.now().getDayOfWeek();
+		if(dayOfWeek.getValue() == 4) {
+			log.info("NO TRADES TODAY, THURSDAY");
+			System.out.println("NO TRADES TODAY, THURSDAY");
+			return;
+		}
+		List<MyPosition> netPositions = straddleService.getPaperNetPositions();
+		List<MyPosition> sellPositions = netPositions.stream().filter(p -> p.getNetQuantity() < 0).collect(Collectors.toList());
+		
+		if((LocalTime.now().isAfter(tradeStartTime) && LocalTime.now().isBefore(tradeStartTime.plusSeconds(30))) && CollectionUtils.isNotEmpty(sellPositions)) {
+			log.info("New Itraday order placing...");
+			System.out.println("New Itraday order placing...");
+			placeStraddleStrategy();
+			return;
+		}
+		
+		if((LocalTime.now().isAfter(tradeEndTime) && LocalTime.now().isBefore(tradeEndTime.plusSeconds(30))) && CollectionUtils.isEmpty(sellPositions)) {
+			log.info("Closing all itraday positions...");
+			System.out.println("Closing all itraday positions...");
+			straddleService.closeAllSellPositions(sellPositions);
+			return;
+		}
 		System.out.println("\n\n\n\n\n\t\t\t(STRADDLE) PAPER - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
 		log.info("PAPER (STRADDLE) - POSITIONS AS ON: "+DateUtils.getDateTime(LocalDateTime.now()));
-		List<MyPosition> netPositions = straddleService.getPaperNetPositions();
+		
 		if(CollectionUtils.isEmpty(netPositions)) {
 			System.out.println("************* NO PAPER (STRADDLE) POSITIONS FOUND ******************");
 			log.info("NO PAPER (STRADDLE) POSITIONS FOUND");
 			return;
 		}
-		List<MyPosition> sellPositions = netPositions.stream().filter(p -> p.getNetQuantity() < 0).collect(Collectors.toList());
+		
 		if(CollectionUtils.isEmpty(sellPositions) || sellPositions.size() > 2) {
 			System.out.println("************* (STRADDLE) FOUND MORE THAN TWO PAPER (STRADDLE) POSITIONS ******************");
 			log.info("FOUND MORE THAN TWO PAPER (STRADDLE) POSITIONS");
