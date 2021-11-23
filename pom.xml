@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.algo</groupId>
 	<artifactId>paper-trade</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0</version>
 	<name>paper-trade</name>
 	<description>Strangle Paper Trade Application</description>
 	<properties>

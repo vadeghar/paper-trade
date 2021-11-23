@@ -21,7 +21,7 @@ import com.algo.utils.Constants;
 import com.algo.utils.DateUtils;
 
 @Service
-public class PaperTradeStrangleService {
+public class PaperTradeStrangle {
 	
 	Logger log = LoggerFactory.getLogger(this.getClass());
 	
@@ -54,7 +54,7 @@ public class PaperTradeStrangleService {
 		strangleService.placeStrangleStrategy();
 	}
 	
-	@Scheduled(cron = "${app.strangle.cron.expression}")
+//	@Scheduled(cron = "${app.strangle.cron.expression}")
 	public void monitorPaperStrangleAndDoAdjustments() throws JSONException, IOException {
 //		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
 //			System.out.println("\n\n\n\nMARKET CLOSED");

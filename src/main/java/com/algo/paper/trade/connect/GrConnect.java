@@ -105,6 +105,7 @@ public class GrConnect {
 	}
 	
 	// NIFTY21D0217200CE
+	//https://groww.in/v1/api/stocks_fo_data/v1/derivatives/nifty/contract?groww_contract_id=NIFTY21NOV17350PE
 	public Map<String, AlogLtpData> getLtpData(List<String> symbols) {
 		Map<String, AlogLtpData> ltps = new HashMap<>();
 		HttpHeaders headers = new HttpHeaders();
@@ -126,6 +127,7 @@ public class GrConnect {
 		for(String symbol: symbols) {
 			String url = GR_OPT_LTP_URL+symbol;
 			log.info("Option Chain URL: "+url);
+			System.out.println("Option Chain URL: "+url);
 			ResponseEntity<GrOptionChainResponse> response = restTemplate.exchange(url, HttpMethod.GET, entity, GrOptionChainResponse.class);
 			GrOptionChainResponse grResponse = response.getBody();
 			AlogLtpData ltpData = processLivePriceResponse(grResponse.getLivePrice());

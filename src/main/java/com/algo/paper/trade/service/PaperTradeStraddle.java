@@ -22,7 +22,7 @@ import com.algo.utils.Constants;
 import com.algo.utils.DateUtils;
 
 @Service
-public class PaperTradeStraddleService {
+public class PaperTradeStraddle {
 	Logger log = LoggerFactory.getLogger(this.getClass());
 	LocalTime closeTime = LocalTime.parse(Constants.CLOSEING_TIME);
 	LocalTime openingTime = LocalTime.parse(Constants.OPENING_TIME);
@@ -45,7 +45,7 @@ public class PaperTradeStraddleService {
 		straddleService.placeStraddleStrategy();
 	}
 
-	@Scheduled(cron = "${app.straddle.cron.expression}")
+//	@Scheduled(cron = "${app.straddle.cron.expression}")
 	public void monitorPaperStraddleAndDoAdjustments() {
 //		if((LocalTime.now().isBefore(openingTime)) || (LocalTime.now().isAfter(closeTime) || LocalTime.now().equals(closeTime))) {
 //			System.out.println("\n\n\n\n(STRADDLE) MARKET CLOSED");

@@ -28,7 +28,7 @@ public class LoadScriptsTest {
 	RestTemplate restTemplate;
 	
 	@Autowired
-	PaperTradeStrangleService paperTradeService;
+	PaperTradeStrangle paperTradeService;
 
 //	@Value("${app.angel.nfo.dataFile}")
 	private String nfoDataFile;
